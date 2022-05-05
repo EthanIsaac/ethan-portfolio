@@ -12,9 +12,11 @@ const theme: DefaultTheme = {
     primary: '#673ab7',
     primaryLight: '#9a67ea',
     primaryDark: '#320b86',
+    shadow: '#888888',
   },
   fixedValues: {
     navBarHeight: '4em',
+    navBarTransitionDuration: '0.7s',
   },
 };
 

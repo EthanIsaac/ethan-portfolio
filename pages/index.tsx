@@ -6,7 +6,7 @@ export default function Home() {
       <Head>
         <title>{'Ethan Portfolio'}</title>
       </Head>
-      <section>CONTENT GOES HERE!</section>
+      <section style={{ height: '2000px' }}>CONTENT GOES HERE!</section>
     </div>
   );
 }
