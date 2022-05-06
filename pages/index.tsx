@@ -1,14 +1,17 @@
 import Head from 'next/head';
 import { useState } from 'react';
 import Background from '../components/background';
+import NavBar from '../components/nav_bar';
 import Scroller from '../components/scroller';
 
 const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 0, 2];
 
 export default function Home() {
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(INITIAL_CAMERA_POSITION);
+  const [currentSection, setCurrentSection] = useState(0);
 
   const handleSectionChange = (index: number) => {
+    setCurrentSection(index);
     switch (index) {
       case 0:
         setCameraPosition(INITIAL_CAMERA_POSITION);
@@ -32,9 +35,11 @@ export default function Home() {
       <Head>
         <title>{'Ethan Portfolio'}</title>
       </Head>
+      <NavBar currentSection={currentSection} />
       <Background position={cameraPosition} />
       <Scroller id="my-scroller" onSectionChange={handleSectionChange}>
         <div> HELLO </div>
+        <div> WORLD </div>
         <div> WORLD </div>
         <div> WORLD </div>
         <div> WORLD </div>

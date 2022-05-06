@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavBarContainer } from './styled';
 
-const NavBar = () => {
+const NavBar = ({ currentSection }) => {
   const [variant, setVariant] = useState(false);
 
   const handleScroll = (e) => {
@@ -18,7 +18,7 @@ const NavBar = () => {
   });
 
   return (
-    <NavBarContainer variant={variant}>
+    <NavBarContainer variant={currentSection != 0}>
       <img
         src="assets/images/coder.png"
         onClick={() =>

@@ -85,10 +85,11 @@ const Scroller = ({ id, children, dragOffset = 80, onSectionChange }: ScrollerPr
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    e.preventDefault();
     if (e.key == 'ArrowUp') {
+      e.preventDefault();
       setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
     } else if (e.key == 'ArrowDown') {
+      e.preventDefault();
       setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
     }
   };
