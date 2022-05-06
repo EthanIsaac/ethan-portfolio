@@ -5,9 +5,11 @@ export const LayoutContainer = styled.div`
   flex-direction: column;
   min-height: 100vh;
   position: relative;
+
+  h1 {
+  }
 `;
 
 export const ComponentContainer = styled.div`
-  margin-top: ${(props) => props.theme.fixedValues.navBarHeight};
   flex: 1;
 `;

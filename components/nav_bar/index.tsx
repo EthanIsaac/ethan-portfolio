@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { NavBarContainer } from './styled';
 
@@ -20,11 +19,15 @@ const NavBar = () => {
 
   return (
     <NavBarContainer variant={variant}>
-      <Link href="/">
-        <a>
-          <img src="assets/images/coder.png"></img>
-        </a>
-      </Link>
+      <img
+        src="assets/images/coder.png"
+        onClick={() =>
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth',
+          })
+        }
+      ></img>
     </NavBarContainer>
   );
 };

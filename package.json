@@ -9,6 +9,7 @@
     "next": "latest",
     "react": "^18.1.0",
     "react-dom": "^18.1.0",
+    "react-loader-spinner": "^6.0.0-0",
     "three": "^0.140.0"
   },
   "devDependencies": {

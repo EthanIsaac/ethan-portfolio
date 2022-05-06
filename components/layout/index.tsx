@@ -1,20 +1,20 @@
-import theme from '../../utils/theme';
 import { ComponentContainer, LayoutContainer } from './styled';
-import { ThemeProvider } from 'styled-components';
 import NavBar from '../nav_bar';
-import Footer from '../footer';
 import Background from '../background';
+import { useState } from 'react';
+import WelcomeScreen from '../../screens/welcome_screen';
+import LoadingScreen from '../../screens/loading_screen';
 
 const Layout = ({ children }) => {
+  const [firstRender, setFirstRender] = useState(true);
   return (
-    <ThemeProvider theme={theme}>
-      <LayoutContainer>
-        <Background />
-        <NavBar />
-        <ComponentContainer>{children}</ComponentContainer>
-        <Footer />
-      </LayoutContainer>
-    </ThemeProvider>
+    <LayoutContainer>
+      <WelcomeScreen onAnimationEnd={() => setFirstRender(false)} />
+      <LoadingScreen visible />
+      <Background />
+      <NavBar />
+      {!firstRender && <ComponentContainer>{children}</ComponentContainer>}
+    </LayoutContainer>
   );
 };
 

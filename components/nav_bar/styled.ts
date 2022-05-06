@@ -5,6 +5,7 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   width: 100%;
   padding: 10px;
   box-sizing: border-box;
+  z-index: 5;
 
   transition: all ${(props) => props.theme.fixedValues.navBarTransitionDuration};
 
@@ -16,7 +17,7 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   background-color: white;
   box-shadow: 0px 2px 10px ${(props) => props.theme.colors.shadow};
 
-  & > a > img {
+  & > img {
     height: 100%;
     width: auto;
     cursor: pointer;

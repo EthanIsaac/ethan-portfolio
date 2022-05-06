@@ -1,4 +1,6 @@
 import Head from 'next/head';
+import Footer from '../components/footer';
+import theme from '../utils/theme';
 
 export default function Home() {
   return (
@@ -6,7 +8,7 @@ export default function Home() {
       <Head>
         <title>{'Ethan Portfolio'}</title>
       </Head>
-      <section style={{ height: '2000px' }}>CONTENT GOES HERE!</section>
+      <div>Content</div>
     </div>
   );
 }
