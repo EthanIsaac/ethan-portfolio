@@ -1,10 +1,10 @@
-import { InfinitySpin, ThreeDots } from 'react-loader-spinner';
+import { ThreeDots } from 'react-loader-spinner';
 import theme from '../../utils/theme';
 
-const LoadingSpinner = () => {
+const LoadingSpinner = ({ width = '10vw', height = 'auto' }: any) => {
   return (
     <div>
-      <ThreeDots width="10vw" color={theme.colors.primaryLight} />
+      <ThreeDots height={width} width={height} color={theme.colors.primaryLight} />
     </div>
   );
 };

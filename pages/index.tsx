@@ -1,6 +1,4 @@
 import Head from 'next/head';
-import Footer from '../components/footer';
-import theme from '../utils/theme';
 
 export default function Home() {
   return (

@@ -1,13 +1,16 @@
 import React from 'react';
+import Background from '../../components/background';
 import LoadingSpinner from '../../components/loading_spinner';
 import { LoadingScreenContainer } from './styled';
 
 const LoadingScreen = ({ visible }) => {
   return (
     <LoadingScreenContainer visible={visible}>
-      <h2>Still building... It will be amazing when it's done!</h2>
+      <Background />
+      <h1>Still building</h1>
+      <LoadingSpinner width="auto" height="auto" />
+      <h2>It will be amazing when it's done!</h2>
       <img style={{ paddingBottom: '5vh' }} src={'assets/images/coder.png'} />
-      <LoadingSpinner />
     </LoadingScreenContainer>
   );
 };
