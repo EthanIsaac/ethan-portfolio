@@ -10,7 +10,6 @@ const Layout = ({ children }) => {
   return (
     <LayoutContainer>
       <WelcomeScreen onAnimationEnd={() => setFirstRender(false)} />
-      <LoadingScreen visible />
       <Background />
       <NavBar />
       {!firstRender && <ComponentContainer>{children}</ComponentContainer>}

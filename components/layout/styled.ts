@@ -11,5 +11,7 @@ export const LayoutContainer = styled.div`
 `;
 
 export const ComponentContainer = styled.div`
+  margin-top: 4em;
+  display: flex;
   flex: 1;
 `;

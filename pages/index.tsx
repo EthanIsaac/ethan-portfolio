@@ -1,12 +1,20 @@
 import Head from 'next/head';
+import Scroller from '../components/scroller';
 
 export default function Home() {
   return (
-    <div>
+    <>
       <Head>
         <title>{'Ethan Portfolio'}</title>
       </Head>
-      <div>Content</div>
-    </div>
+      <Scroller id="my-scroller">
+        <div> HELLO </div>
+        <div> WORLD </div>
+        <div> WORLD </div>
+        <div> WORLD </div>
+        <div> WORLD </div>
+        <div> WORLD </div>
+      </Scroller>
+    </>
   );
 }

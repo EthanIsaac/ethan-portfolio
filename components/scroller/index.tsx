@@ -1,44 +1,85 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { ScrollerContainer, ScrollSectionContainer } from './styled';
 
 interface ScrollerProps {
   id: string;
-  vertical?: boolean;
-  offsetToChange?: number;
   children: Array<ReactNode>;
+  dragOffset?: number;
 }
 
-const Scroller = ({ id, children, vertical, offsetToChange = 200 }: ScrollerProps) => {
+const Scroller = ({ id, children, dragOffset = 80 }: ScrollerProps) => {
   const [currentElement, setCurrentElement] = useState(0);
-  let lastScrollPosition = 0;
+  const [container, setContainer] = useState<HTMLElement>(null);
+  let preventScrollTimer: NodeJS.Timeout = null;
+  let dragInitialPosition = 0;
+  let touchInitialPosition = 0;
+
+  const handleMouseUp = function (e) {
+    container.onmouseup = null;
+
+    const deltaY = e.clientY - dragInitialPosition;
+    if (Math.abs(deltaY) > dragOffset) {
+      if (deltaY > 0) {
+        setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
+      } else {
+        setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
+      }
+    }
+  };
+
+  const handleMouseDown = function (e) {
+    dragInitialPosition = e.clientY;
+    container.onmouseup = handleMouseUp;
+  };
 
   const scrollToElement = (index: number) => {
-    const container = document.getElementById(id);
+    if (!container) return;
+    const element = container.querySelector(`[data-scrolling-id="${id}-${index}"]`);
 
-    const element = container.querySelector(`[data-scrolling-id="${index}"]`);
-
-    console.log(element);
-
+    console.log('element is ', element);
     if (element != null) {
-      console.log('GOING TO SOMETHING');
-      window.removeEventListener('scroll', handleScroll);
       element.scrollIntoView({
-        block: 'start',
+        block: 'end',
         behavior: 'smooth',
       });
     }
   };
 
-  const handleScroll = (e: Event) => {
-    e.preventDefault();
-    const offset = lastScrollPosition - window.scrollY;
+  const handletouchEnd = (e: TouchEvent) => {
+    container.ontouchend = null;
+    if (e.changedTouches.length != 1) {
+      return;
+    }
 
-    if (Math.abs(offset) >= offsetToChange) {
-      if (offset > 0) {
-        setCurrentElement((prev) => (prev + 1) % children.length);
+    const deltaY = e.changedTouches[0].clientY - touchInitialPosition;
+    if (Math.abs(deltaY) > dragOffset) {
+      if (deltaY > 0) {
+        setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
       } else {
-        setCurrentElement((prev) => (prev - 1) % children.length);
+        setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
       }
-      lastScrollPosition = window.scrollY;
+    }
+  };
+
+  const handleTouchStart = (e: TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length != 1) {
+      return;
+    }
+    touchInitialPosition = e.touches[0].clientY;
+    container.ontouchend = handletouchEnd;
+  };
+
+  const handleWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    if (preventScrollTimer != null) {
+      return;
+    }
+    preventScrollTimer = setTimeout(() => (preventScrollTimer = null), 500);
+    if (e.deltaY > 0) {
+      setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
+    } else {
+      setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
     }
   };
 
@@ -47,18 +88,25 @@ const Scroller = ({ id, children, vertical, offsetToChange = 200 }: ScrollerProp
   }, [currentElement]);
 
   useEffect(() => {
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    if (container) {
+      container.onwheel = handleWheel;
+      container.onmousedown = handleMouseDown;
+      container.ontouchstart = handleTouchStart;
+    }
+  }, [container]);
+
+  useEffect(() => {
+    setContainer(document.getElementById(id));
   }, []);
 
   return (
-    <div id={id}>
+    <ScrollerContainer id={id}>
       {children.map((e, i) => (
-        <div id={`${i}`} data-scrolling-id={`${i}`}>
+        <ScrollSectionContainer key={`${i}`} data-scrolling-id={`${id}-${i}`}>
           {e}
-        </div>
+        </ScrollSectionContainer>
       ))}
-    </div>
+    </ScrollerContainer>
   );
 };
 
