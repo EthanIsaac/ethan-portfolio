@@ -83,12 +83,22 @@ const Scroller = ({ id, children, dragOffset = 80 }: ScrollerProps) => {
     }
   };
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    e.preventDefault();
+    if (e.key == 'ArrowUp') {
+      setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
+    } else if (e.key == 'ArrowDown') {
+      setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
+    }
+  };
+
   useEffect(() => {
     scrollToElement(currentElement);
   }, [currentElement]);
 
   useEffect(() => {
     if (container) {
+      window.onkeydown = handleKeyDown;
       container.onwheel = handleWheel;
       container.onmousedown = handleMouseDown;
       container.ontouchstart = handleTouchStart;
