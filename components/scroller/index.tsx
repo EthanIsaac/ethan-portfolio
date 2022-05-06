@@ -5,9 +5,10 @@ interface ScrollerProps {
   id: string;
   children: Array<ReactNode>;
   dragOffset?: number;
+  onSectionChange?: (section: number) => void;
 }
 
-const Scroller = ({ id, children, dragOffset = 80 }: ScrollerProps) => {
+const Scroller = ({ id, children, dragOffset = 80, onSectionChange }: ScrollerProps) => {
   const [currentElement, setCurrentElement] = useState(0);
   const [container, setContainer] = useState<HTMLElement>(null);
   let preventScrollTimer: NodeJS.Timeout = null;
@@ -36,8 +37,8 @@ const Scroller = ({ id, children, dragOffset = 80 }: ScrollerProps) => {
     if (!container) return;
     const element = container.querySelector(`[data-scrolling-id="${id}-${index}"]`);
 
-    console.log('element is ', element);
     if (element != null) {
+      onSectionChange(index);
       element.scrollIntoView({
         block: 'end',
         behavior: 'smooth',

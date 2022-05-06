@@ -37,6 +37,6 @@ export const WelcomeScreenBackground = styled.div<{ visible: boolean }>`
 
 export const WelcomeMessage = styled.div`
   animation: bounceInDown;
-  animation-duration: 2s;
+  animation-duration: ${(props) => props.theme.fixedValues.welcomeScreenDuration};
   text-align: center;
 `;

@@ -22,6 +22,7 @@ const theme: DefaultTheme = {
     navBarHeight: '4em',
     footerHeight: '4em',
     navBarTransitionDuration: '0.7s',
+    welcomeScreenDuration: '2s',
   },
 };
 

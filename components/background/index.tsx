@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { BackgroundContainer } from './styled';
 import { Points, PointMaterial } from '@react-three/drei';
@@ -48,10 +48,54 @@ const Stars = (props) => {
   );
 };
 
-const Background = () => {
+function CameraMovement({ position }) {
+  const [cameraPosition, setCameraPosition] = useState([0, 0, 1]);
+  const [steps, setSteps] = useState([0.01, 0.01, 0.01]);
+
+  useEffect(() => {
+    const stepX = (position[0] - cameraPosition[0]) / 120;
+    const stepY = (position[1] - cameraPosition[1]) / 120;
+    const stepZ = (position[2] - cameraPosition[2]) / 120;
+    setSteps([stepX, stepY, stepZ]);
+    console.log(stepX, stepY, stepZ);
+    console.log(position);
+    console.log(cameraPosition);
+  }, [position]);
+
+  useFrame(({ camera }) => {
+    const [newX, newY, newZ] = position;
+    setCameraPosition([camera.position.x, camera.position.y, camera.position.z]);
+
+    const deltaX = camera.position.x - newX;
+
+    if (Math.abs(deltaX) > 0.01) {
+      camera.position.x += steps[0];
+    }
+
+    const deltaY = camera.position.y - newY;
+
+    if (Math.abs(deltaY) > 0.01) {
+      camera.position.y += steps[1];
+    }
+
+    const deltaZ = camera.position.z - newZ;
+
+    if (Math.abs(deltaZ) > 0.01) {
+      camera.position.z += steps[2];
+    }
+  });
+  return null;
+}
+
+interface BackgroundProps {
+  position: [number, number, number];
+}
+
+const Background = ({ position }: BackgroundProps) => {
   return (
     <BackgroundContainer>
-      <Canvas camera={{ position: [0, 0, 1] }}>
+      <Canvas>
+        <CameraMovement position={position} />
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
         <Stars />
