@@ -1,4 +1,6 @@
 import styled from 'styled-components';
+import { NAV_BAR_HEIGHT } from '../../utils/constants/component_sizes';
+import { DURATION_NAV_BAR_TRANSITION } from '../../utils/constants/durations';
 
 export const NavBarContainer = styled.div<{ variant: boolean }>`
   position: fixed;
@@ -7,13 +9,13 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   box-sizing: border-box;
   z-index: 5;
 
-  transition: all ${(props) => props.theme.fixedValues.navBarTransitionDuration};
+  transition: all ${DURATION_NAV_BAR_TRANSITION};
 
   & * {
-    transition: all ${(props) => props.theme.fixedValues.navBarTransitionDuration};
+    transition: all ${DURATION_NAV_BAR_TRANSITION};
   }
 
-  height: ${(props) => props.theme.fixedValues.navBarHeight};
+  height: ${NAV_BAR_HEIGHT};
   background-color: white;
   box-shadow: 0px 2px 10px ${(props) => props.theme.colors.shadow};
 
@@ -26,7 +28,7 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   ${(props) =>
     props.variant &&
     `
-    height: calc(${props.theme.fixedValues.navBarHeight} - 0.5em);
+    height: calc(${NAV_BAR_HEIGHT} - 0.5em);
     box-shadow: none;
     background-color: transparent;
   `}

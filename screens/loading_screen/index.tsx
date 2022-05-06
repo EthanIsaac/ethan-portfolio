@@ -6,7 +6,7 @@ import { LoadingScreenContainer } from './styled';
 const LoadingScreen = ({ visible }) => {
   return (
     <LoadingScreenContainer visible={visible}>
-      <Background />
+      <Background position={[0, 0, 0]} />
       <h1>Still building</h1>
       <LoadingSpinner width="auto" height="auto" />
       <h2>It will be amazing when it's done!</h2>

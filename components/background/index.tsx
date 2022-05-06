@@ -57,9 +57,6 @@ function CameraMovement({ position }) {
     const stepY = (position[1] - cameraPosition[1]) / 120;
     const stepZ = (position[2] - cameraPosition[2]) / 120;
     setSteps([stepX, stepY, stepZ]);
-    console.log(stepX, stepY, stepZ);
-    console.log(position);
-    console.log(cameraPosition);
   }, [position]);
 
   useFrame(({ camera }) => {

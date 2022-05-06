@@ -1,4 +1,5 @@
 import styled, { keyframes } from 'styled-components';
+import { DURATION_WELCOME_SCREEN } from '../../utils/constants/durations';
 
 const rotate = keyframes`
   from {
@@ -37,6 +38,6 @@ export const WelcomeScreenBackground = styled.div<{ visible: boolean }>`
 
 export const WelcomeMessage = styled.div`
   animation: bounceInDown;
-  animation-duration: ${(props) => props.theme.fixedValues.welcomeScreenDuration};
+  animation-duration: ${DURATION_WELCOME_SCREEN};
   text-align: center;
 `;
