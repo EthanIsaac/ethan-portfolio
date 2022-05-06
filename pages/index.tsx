@@ -37,15 +37,28 @@ export default function Home() {
       </Head>
       <NavBar currentSection={currentSection} />
       <Background position={cameraPosition} />
-      <Scroller id="my-scroller" onSectionChange={handleSectionChange}>
-        <div> HELLO </div>
-        <div> WORLD </div>
-        <div> WORLD </div>
-        <div> WORLD </div>
-        <div> WORLD </div>
-        <div> WORLD </div>
-        <div> WORLD </div>
-      </Scroller>
+      <Scroller
+        id="my-scroller"
+        onSectionChange={handleSectionChange}
+        sections={[
+          {
+            title: 'My first section',
+            component: <div>Hello world!</div>,
+          },
+          {
+            title: 'My second section',
+            component: <div>Hello world!</div>,
+          },
+          {
+            title: 'My third section',
+            component: <div>Hello world!</div>,
+          },
+          {
+            title: 'My fourth section',
+            component: <div>Hello world!</div>,
+          },
+        ]}
+      />
     </>
   );
 }

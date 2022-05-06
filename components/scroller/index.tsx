@@ -1,19 +1,35 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { ScrollerContainer, ScrollSectionContainer } from './styled';
+import {
+  ScrollableSection,
+  ScrollerContainer,
+  ScrollSectionContainer,
+  SectionsListContainer,
+  SectionTitle,
+} from './styled';
 
 interface ScrollerProps {
   id: string;
-  children: Array<ReactNode>;
   dragOffset?: number;
   onSectionChange?: (section: number) => void;
+  sections: Array<{
+    title: string;
+    component: ReactNode;
+  }>;
 }
 
-const Scroller = ({ id, children, dragOffset = 80, onSectionChange }: ScrollerProps) => {
+const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerProps) => {
   const [currentElement, setCurrentElement] = useState(0);
   const [container, setContainer] = useState<HTMLElement>(null);
   let preventScrollTimer: NodeJS.Timeout = null;
   let dragInitialPosition = 0;
   let touchInitialPosition = 0;
+
+  const nextElement = () => {
+    setCurrentElement((prev) => (prev < sections.length - 1 ? prev + 1 : sections.length - 1));
+  };
+  const previousElement = () => {
+    setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
+  };
 
   const handleMouseUp = function (e) {
     container.onmouseup = null;
@@ -21,9 +37,9 @@ const Scroller = ({ id, children, dragOffset = 80, onSectionChange }: ScrollerPr
     const deltaY = e.clientY - dragInitialPosition;
     if (Math.abs(deltaY) > dragOffset) {
       if (deltaY > 0) {
-        setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
+        previousElement();
       } else {
-        setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
+        nextElement();
       }
     }
   };
@@ -55,9 +71,9 @@ const Scroller = ({ id, children, dragOffset = 80, onSectionChange }: ScrollerPr
     const deltaY = e.changedTouches[0].clientY - touchInitialPosition;
     if (Math.abs(deltaY) > dragOffset) {
       if (deltaY > 0) {
-        setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
+        previousElement();
       } else {
-        setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
+        nextElement();
       }
     }
   };
@@ -78,19 +94,19 @@ const Scroller = ({ id, children, dragOffset = 80, onSectionChange }: ScrollerPr
     }
     preventScrollTimer = setTimeout(() => (preventScrollTimer = null), 500);
     if (e.deltaY > 0) {
-      setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
+      nextElement();
     } else {
-      setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
+      previousElement();
     }
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key == 'ArrowUp') {
       e.preventDefault();
-      setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
+      previousElement();
     } else if (e.key == 'ArrowDown') {
       e.preventDefault();
-      setCurrentElement((prev) => (prev < children.length - 1 ? prev + 1 : children.length - 1));
+      nextElement();
     }
   };
 
@@ -113,11 +129,20 @@ const Scroller = ({ id, children, dragOffset = 80, onSectionChange }: ScrollerPr
 
   return (
     <ScrollerContainer id={id}>
-      {children.map((e, i) => (
-        <ScrollSectionContainer key={`${i}`} data-scrolling-id={`${id}-${i}`}>
-          {e}
-        </ScrollSectionContainer>
-      ))}
+      <SectionsListContainer>
+        {sections.map(({ title }, i) => (
+          <SectionTitle key={`${i}`} index={i} onClick={() => setCurrentElement(i)}>
+            {title}
+          </SectionTitle>
+        ))}
+      </SectionsListContainer>
+      <ScrollableSection>
+        {sections.map(({ component }, i) => (
+          <ScrollSectionContainer key={`${i}`} data-scrolling-id={`${id}-${i}`}>
+            {component}
+          </ScrollSectionContainer>
+        ))}
+      </ScrollableSection>
     </ScrollerContainer>
   );
 };
