@@ -49,8 +49,8 @@ const Stars = (props) => {
 };
 
 function CameraMovement({ position }) {
-  const [cameraPosition, setCameraPosition] = useState([0, 0, 1]);
-  const [steps, setSteps] = useState([0.01, 0.01, 0.01]);
+  const [cameraPosition, setCameraPosition] = useState([0, 0, 2]);
+  const [steps, setSteps] = useState([0.0, 0.0, 0.0]);
 
   useEffect(() => {
     const stepX = (position[0] - cameraPosition[0]) / 120;
@@ -91,7 +91,7 @@ interface BackgroundProps {
 const Background = ({ position }: BackgroundProps) => {
   return (
     <BackgroundContainer>
-      <Canvas>
+      <Canvas camera={{ position }}>
         <CameraMovement position={position} />
         <ambientLight />
         <pointLight position={[10, 10, 10]} />

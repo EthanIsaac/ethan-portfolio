@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Background from '../components/background';
 import Scroller from '../components/scroller';
 
-const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 0, 5];
+const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 0, 2];
 
 export default function Home() {
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(INITIAL_CAMERA_POSITION);
@@ -14,7 +14,7 @@ export default function Home() {
         setCameraPosition(INITIAL_CAMERA_POSITION);
         break;
       case 1:
-        setCameraPosition([2, 0, 1]);
+        setCameraPosition([1, 0, 0]);
         break;
       case 2:
         setCameraPosition([1, 2, 2]);
