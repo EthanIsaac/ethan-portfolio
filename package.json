@@ -4,7 +4,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "export": "next export"
+    "export": "next export",
+    "deploy": "next build && next export && aws s3 sync ./out s3://ethantrevizo.com --profile personal"
   },
   "dependencies": {
     "next": "latest",
