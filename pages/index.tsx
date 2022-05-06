@@ -42,19 +42,19 @@ export default function Home() {
         onSectionChange={handleSectionChange}
         sections={[
           {
-            title: 'My first section',
+            title: 'About me',
             component: <div>Hello world!</div>,
           },
           {
-            title: 'My second section',
+            title: 'My skills',
             component: <div>Hello world!</div>,
           },
           {
-            title: 'My third section',
+            title: 'Past experience',
             component: <div>Hello world!</div>,
           },
           {
-            title: 'My fourth section',
+            title: 'Hobbies',
             component: <div>Hello world!</div>,
           },
         ]}

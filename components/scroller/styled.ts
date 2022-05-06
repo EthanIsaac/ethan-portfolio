@@ -32,13 +32,16 @@ export const SectionsListContainer = styled.div`
   display: flex;
 `;
 
-export const SectionTitle = styled.h4<{ index: number }>`
+export const SectionTitle = styled.span<{ index: number }>`
   font-size: 1.4em;
   cursor: pointer;
   margin: 0 0.5em;
-  text-shadow: 0px 5px 5px ${(props) => props.theme.colors.shadow};
-  display: inline-block;
+  text-shadow: 0px 2px 5px ${(props) => props.theme.colors.shadow};
   animation: backInDown 1s;
   animation-delay: ${(props) => props.index * 0.2}s;
   animation-fill-mode: both;
+
+  :hover {
+    text-shadow: 0px 0px 10px white;
+  }
 `;

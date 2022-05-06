@@ -19,7 +19,10 @@ export default class Document extends Doc {
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
             <link rel="preconnect" href="https://fonts.googleapis.com"></link>
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true"></link>
-            <link href="https://fonts.googleapis.com/css2?family=Unna&display=swap" rel="stylesheet"></link>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Unna:wght@400;700&display=swap"
+              rel="stylesheet"
+            ></link>
           </head>
           {initialProps.styles}
           {sheet.getStyleElement()}

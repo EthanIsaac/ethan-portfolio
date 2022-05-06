@@ -6,7 +6,7 @@ const GlobalStyle = createGlobalStyle`
     padding: 0;
     margin: 0;
     color: white;
-    font-family: 'Unna', serif;
+    font-weight: 400;
 
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
