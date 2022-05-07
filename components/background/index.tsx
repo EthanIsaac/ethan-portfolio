@@ -5,6 +5,8 @@ import { BackgroundContainer } from './styled';
 import { Points, PointMaterial } from '@react-three/drei';
 import theme from '../../utils/theme';
 
+const DISTANCE_TO_SLOW_DOWN = 1;
+
 function inSphere(buffer: Float32Array, sphere: { radius: number; x0?: number; y0?: number; z0?: number }) {
   const { radius, x0 = 0, y0 = 0, z0 = 0 } = sphere;
 
@@ -57,6 +59,7 @@ function CameraMovement({ position }) {
     const stepY = (position[1] - cameraPosition[1]) / 120;
     const stepZ = (position[2] - cameraPosition[2]) / 120;
     setSteps([stepX, stepY, stepZ]);
+    console.log(steps);
   }, [position]);
 
   useFrame(({ camera }) => {
@@ -64,21 +67,25 @@ function CameraMovement({ position }) {
     setCameraPosition([camera.position.x, camera.position.y, camera.position.z]);
 
     const deltaX = camera.position.x - newX;
-
-    if (Math.abs(deltaX) > 0.01) {
-      camera.position.x += steps[0];
-    }
-
     const deltaY = camera.position.y - newY;
-
-    if (Math.abs(deltaY) > 0.01) {
-      camera.position.y += steps[1];
-    }
-
     const deltaZ = camera.position.z - newZ;
 
+    const distance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2) + Math.pow(deltaZ, 2));
+
+    const divider = 1.5 / distance;
+
+    console.log(divider);
+
+    if (Math.abs(deltaX) > 0.01) {
+      camera.position.x += steps[0] / divider;
+    }
+
+    if (Math.abs(deltaY) > 0.01) {
+      camera.position.y += steps[1] / divider;
+    }
+
     if (Math.abs(deltaZ) > 0.01) {
-      camera.position.z += steps[2];
+      camera.position.z += steps[2] / divider;
     }
   });
   return null;

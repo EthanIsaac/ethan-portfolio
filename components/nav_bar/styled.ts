@@ -22,7 +22,6 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   & > img {
     height: 100%;
     width: auto;
-    cursor: pointer;
   }
 
   ${(props) =>
