@@ -70,11 +70,9 @@ function CameraMovement({ position }) {
     const deltaY = camera.position.y - newY;
     const deltaZ = camera.position.z - newZ;
 
-    const distance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2) + Math.pow(deltaZ, 2));
+    const squareDistance = Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2) + Math.pow(deltaZ, 2));
 
-    const divider = 1.5 / distance;
-
-    console.log(divider);
+    const divider = 1.5 / squareDistance;
 
     if (Math.abs(deltaX) > 0.01) {
       camera.position.x += steps[0] / divider;
