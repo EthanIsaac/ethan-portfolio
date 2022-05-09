@@ -1,11 +1,7 @@
-import { ReactNode, useEffect, useState } from 'react';
-import {
-  ScrollableSection,
-  ScrollerContainer,
-  ScrollSectionContainer,
-  SectionsListContainer,
-  SectionTitle,
-} from './styled';
+import { useEffect, useState } from 'react';
+import WithFade from '../../wrappers/with_fade';
+import NavBar from '../nav_bar';
+import { ScrollerContainer, ScrollSectionContainer } from './styled';
 
 interface ScrollerProps {
   id: string;
@@ -13,7 +9,7 @@ interface ScrollerProps {
   onSectionChange?: (section: number) => void;
   sections: Array<{
     title: string;
-    component: ReactNode;
+    Component: () => JSX.Element;
   }>;
 }
 
@@ -49,19 +45,6 @@ const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerPr
     container.onmouseup = handleMouseUp;
   };
 
-  const scrollToElement = (index: number) => {
-    if (!container) return;
-    const element = container.querySelector(`[data-scrolling-id="${id}-${index}"]`);
-
-    if (element != null) {
-      onSectionChange(index);
-      element.scrollIntoView({
-        block: 'end',
-        behavior: 'smooth',
-      });
-    }
-  };
-
   const handletouchEnd = (e: TouchEvent) => {
     container.ontouchend = null;
     if (e.changedTouches.length != 1) {
@@ -79,7 +62,6 @@ const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerPr
   };
 
   const handleTouchStart = (e: TouchEvent) => {
-    e.preventDefault();
     if (e.touches.length != 1) {
       return;
     }
@@ -111,7 +93,7 @@ const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerPr
   };
 
   useEffect(() => {
-    scrollToElement(currentElement);
+    onSectionChange(currentElement);
   }, [currentElement]);
 
   useEffect(() => {
@@ -128,21 +110,15 @@ const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerPr
   }, []);
 
   return (
-    <ScrollerContainer id={id}>
-      <SectionsListContainer>
-        {sections.map(({ title }, i) => (
-          <SectionTitle key={`${i}`} index={i} onClick={() => setCurrentElement(i)}>
-            {title}
-          </SectionTitle>
-        ))}
-      </SectionsListContainer>
-      <ScrollableSection>
-        {sections.map(({ component }, i) => (
-          <ScrollSectionContainer key={`${i}`} data-scrolling-id={`${id}-${i}`}>
-            {component}
-          </ScrollSectionContainer>
-        ))}
-      </ScrollableSection>
+    <ScrollerContainer className={'no-select'} id={id}>
+      <NavBar sections={sections} currentSection={currentElement} onTitleClick={setCurrentElement} />
+      {sections.map(({ Component }, i) => (
+        <ScrollSectionContainer key={`${i}`} data-scrolling-id={`${id}-${i}`}>
+          <WithFade visible={i === currentElement}>
+            <Component />
+          </WithFade>
+        </ScrollSectionContainer>
+      ))}
     </ScrollerContainer>
   );
 };

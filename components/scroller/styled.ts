@@ -6,42 +6,14 @@ export const ScrollerContainer = styled.div`
   display: flex;
   flex-direction: column;
   flex: 1;
-  margin-top: ${NAV_BAR_HEIGHT};
-`;
-
-export const ScrollableSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  cursor: grab;
 `;
 
 export const ScrollSectionContainer = styled.div`
-  flex: 0 0 100%;
+  width: 100%;
+  height: calc(100% - ${NAV_BAR_HEIGHT});
   padding: 2vh 1vw;
   box-sizing: border-box;
-`;
-
-export const SectionsListContainer = styled.div`
   position: absolute;
-  top: 10px;
-  right: 1vw;
-  width: auto;
-  height: auto;
-  display: flex;
-`;
-
-export const SectionTitle = styled.span<{ index: number }>`
-  font-size: 1.4em;
-  cursor: pointer;
-  margin: 0 0.5em;
-  text-shadow: 0px 2px 5px ${(props) => props.theme.colors.shadow};
-  animation: backInDown 1s;
-  animation-delay: ${(props) => props.index * 0.2}s;
-  animation-fill-mode: both;
-
-  :hover {
-    text-shadow: 0px 0px 10px white;
-  }
+  margin-top: ${NAV_BAR_HEIGHT};
+  cursor: grab;
 `;

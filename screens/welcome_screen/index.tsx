@@ -16,7 +16,7 @@ const WelcomeScreen = ({ onAnimationEnd }: WelcomeScreenProps) => {
             onAnimationEnd();
           }}
         >
-          <h1>Welcome to my portfolio!</h1>
+          <h1>Welcome to my site!</h1>
           <h2>Ethan Bautista</h2>
         </WelcomeMessage>
       </WelcomeScreenContainer>
