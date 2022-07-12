@@ -5,7 +5,7 @@
     "build": "next build",
     "start": "next start",
     "export": "next export",
-    "deploy": "next build && next export && aws s3 sync ./out s3://ethantrevizo.com --profile personal"
+    "deploy": "next build && next export && aws s3 sync ./out s3://ethantrevizo.com --profile personal --delete && aws cloudfront create-invalidation --profile personal --distribution-id E130ND0ZBIO9C6 --paths \"/*\""
   },
   "dependencies": {
     "next": "latest",

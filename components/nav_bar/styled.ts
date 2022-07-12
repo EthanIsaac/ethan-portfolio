@@ -1,6 +1,6 @@
-import styled from 'styled-components';
-import { NAV_BAR_HEIGHT } from '../../utils/constants/component_sizes';
-import { DURATION_NAV_BAR_TRANSITION } from '../../utils/constants/durations';
+import styled from "styled-components";
+import { NAV_BAR_HEIGHT } from "../../utils/constants/component_sizes";
+import { DURATION_NAV_BAR_TRANSITION } from "../../utils/constants/durations";
 
 export const NavBarContainer = styled.div<{ variant: boolean }>`
   display: flex;
@@ -20,9 +20,17 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   background-color: white;
   box-shadow: 0px 2px 10px ${(props) => props.theme.colors.shadow};
 
-  & > img {
+  & > button {
     height: 100%;
     width: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    > img {
+      height: 100%;
+      width: auto;
+    }
   }
 
   ${(props) =>

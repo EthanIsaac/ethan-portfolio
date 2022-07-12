@@ -1,5 +1,6 @@
-import { createGlobalStyle } from 'styled-components';
-import { blurIn, blurOut } from '../animations/blur';
+import { createGlobalStyle } from "styled-components";
+import { blurIn, blurOut } from "../animations/blur";
+import { isMobile } from "react-device-detect";
 
 const GlobalStyle = createGlobalStyle`
   html,
@@ -8,6 +9,7 @@ const GlobalStyle = createGlobalStyle`
     margin: 0;
     color: white;
     font-weight: 400;
+    font-size: 16px;
 
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
@@ -16,23 +18,31 @@ const GlobalStyle = createGlobalStyle`
     }
 
     h1 {
-      font-size: 5em;
+      ${
+        isMobile
+          ? `
+      font-size: 2rem;
+      `
+          : `
+      font-size: 4rem;
+      `
+      }
     }
 
     h2 {
-      font-size: 3em;
+      ${isMobile ? "font-size: 1.5rem;" : "font-size: 3rem;"}
     }
 
     h3 {
-      font-size: 2em;
+      ${isMobile ? "font-size: 1rem;" : "font-size: 2rem;"}
     }
 
     h4 {
-      font-size: 1.3em;
+      font-size: 1.3rem;
     }
 
     h5 {
-      font-size: 1em;
+      font-size: 1rem;
     }
 
     .no-select {

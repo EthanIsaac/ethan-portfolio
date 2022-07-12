@@ -1,11 +1,13 @@
-import { NavBarContainer, SectionsListContainer, SectionTitle } from './styled';
+import { NavBarContainer, SectionsListContainer, SectionTitle } from "./styled";
 
 const NavBar = ({ currentSection, sections, onTitleClick }) => {
   const variant = currentSection != 0;
 
   return (
     <NavBarContainer variant={variant}>
-      <img src="assets/images/coder.png"></img>
+      <button onClick={() => onTitleClick(0)}>
+        <img src="assets/images/coder.png"></img>
+      </button>
       <SectionsListContainer>
         {sections.map(({ title }: { title: string }, i: number) => (
           <SectionTitle

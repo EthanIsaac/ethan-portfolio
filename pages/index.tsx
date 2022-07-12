@@ -1,11 +1,12 @@
-import Head from 'next/head';
-import { useMemo, useState } from 'react';
-import Background from '../components/background';
-import Scroller from '../components/scroller';
-import AboutMe from '../sections/about_me';
-import Hobbies from '../sections/hobbies';
-import PastExperience from '../sections/past_experience';
-import Skills from '../sections/skills';
+import Head from "next/head";
+import { useMemo, useState } from "react";
+import Background from "../components/background";
+import NavBar from "../components/nav_bar";
+import Scroller from "../components/scroller";
+import AboutMe from "../sections/about_me";
+import Hobbies from "../sections/hobbies";
+import PastExperience from "../sections/past_experience";
+import Skills from "../sections/skills";
 
 const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 0, 2];
 
@@ -21,22 +22,22 @@ export default function Home() {
   const sections: Array<Section> = useMemo(
     () => [
       {
-        title: 'About me',
+        title: "About me",
         Component: AboutMe,
         cameraPosition: INITIAL_CAMERA_POSITION,
       },
       {
-        title: 'Skills',
+        title: "Skills",
         Component: Skills,
         cameraPosition: [1, 0, 0],
       },
       {
-        title: 'Past experience',
+        title: "Past experience",
         Component: PastExperience,
         cameraPosition: [1, 2, 2],
       },
       {
-        title: 'Hobbies',
+        title: "Hobbies",
         Component: Hobbies,
         cameraPosition: [2, 1, 2],
       },
@@ -51,10 +52,16 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>{'Ethan Resume'}</title>
+        <title>{"Ethan Resume"}</title>
       </Head>
+      <NavBar sections={sections} currentSection={currentSection} onTitleClick={handleSectionChange} />
       <Background position={sections[currentSection].cameraPosition} />
-      <Scroller id="my-scroller" onSectionChange={handleSectionChange} sections={sections} />
+      <Scroller
+        id="my-scroller"
+        currentSection={currentSection}
+        onSectionChange={handleSectionChange}
+        sections={sections}
+      />
     </>
   );
 }

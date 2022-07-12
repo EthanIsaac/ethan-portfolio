@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
-import WithFade from '../../wrappers/with_fade';
-import NavBar from '../nav_bar';
-import { ScrollerContainer, ScrollSectionContainer } from './styled';
+import { useCallback, useEffect, useState } from "react";
+import WithFade from "../../wrappers/with_fade";
+import { ScrollerContainer, ScrollSectionContainer } from "./styled";
 
 interface ScrollerProps {
   id: string;
   dragOffset?: number;
+  currentSection: number;
   onSectionChange?: (section: number) => void;
   sections: Array<{
     title: string;
@@ -13,19 +13,27 @@ interface ScrollerProps {
   }>;
 }
 
-const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerProps) => {
-  const [currentElement, setCurrentElement] = useState(0);
+const Scroller = ({ id, currentSection, dragOffset = 80, onSectionChange, sections }: ScrollerProps) => {
   const [container, setContainer] = useState<HTMLElement>(null);
   let preventScrollTimer: NodeJS.Timeout = null;
   let dragInitialPosition = 0;
   let touchInitialPosition = 0;
 
-  const nextElement = () => {
-    setCurrentElement((prev) => (prev < sections.length - 1 ? prev + 1 : sections.length - 1));
-  };
-  const previousElement = () => {
-    setCurrentElement((prev) => (prev > 0 ? prev - 1 : 0));
-  };
+  const nextElement = useCallback(() => {
+    if (currentSection < sections.length - 1) {
+      onSectionChange(currentSection + 1);
+    } else {
+      onSectionChange(sections.length - 1);
+    }
+  }, [currentSection]);
+
+  const previousElement = useCallback(() => {
+    if (currentSection > 0) {
+      onSectionChange(currentSection - 1);
+    } else {
+      onSectionChange(0);
+    }
+  }, [currentSection]);
 
   const handleMouseUp = function (e) {
     container.onmouseup = null;
@@ -83,18 +91,14 @@ const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerPr
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key == 'ArrowUp') {
+    if (e.key == "ArrowUp") {
       e.preventDefault();
       previousElement();
-    } else if (e.key == 'ArrowDown') {
+    } else if (e.key == "ArrowDown") {
       e.preventDefault();
       nextElement();
     }
   };
-
-  useEffect(() => {
-    onSectionChange(currentElement);
-  }, [currentElement]);
 
   useEffect(() => {
     if (container) {
@@ -102,19 +106,24 @@ const Scroller = ({ id, dragOffset = 80, onSectionChange, sections }: ScrollerPr
       container.onwheel = handleWheel;
       container.onmousedown = handleMouseDown;
       container.ontouchstart = handleTouchStart;
+      return () => {
+        window.onkeydown = null;
+        container.onwheel = null;
+        container.onmousedown = null;
+        container.ontouchstart = null;
+      };
     }
-  }, [container]);
+  }, [container, currentSection]);
 
   useEffect(() => {
     setContainer(document.getElementById(id));
   }, []);
 
   return (
-    <ScrollerContainer className={'no-select'} id={id}>
-      <NavBar sections={sections} currentSection={currentElement} onTitleClick={setCurrentElement} />
+    <ScrollerContainer className={"no-select"} id={id}>
       {sections.map(({ Component }, i) => (
         <ScrollSectionContainer key={`${i}`} data-scrolling-id={`${id}-${i}`}>
-          <WithFade visible={i === currentElement}>
+          <WithFade visible={i === currentSection}>
             <Component />
           </WithFade>
         </ScrollSectionContainer>
