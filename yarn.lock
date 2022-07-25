@@ -525,6 +525,13 @@ detect-gpu@^4.0.19:
   dependencies:
     webgl-constants "^1.1.1"
 
+dom7@^4.0.4:
+  version "4.0.4"
+  resolved "https://registry.yarnpkg.com/dom7/-/dom7-4.0.4.tgz#8b68c5d8e5e2ed0fddb1cb93e433bc9060c8f3fb"
+  integrity sha512-DSSgBzQ4rJWQp1u6o+3FVwMNnT5bzQbMb+o31TjYYeRi05uAcpF8koxdfzeoe5ElzPmua7W7N28YJhF7iEKqIw==
+  dependencies:
+    ssr-window "^4.0.0"
+
 draco3d@^1.4.1:
   version "1.5.2"
   resolved "https://registry.yarnpkg.com/draco3d/-/draco3d-1.5.2.tgz#a09604a9e6bbf4e5a69208af4622038c55ef4ca7"
@@ -797,6 +804,11 @@ source-map-js@^1.0.1:
   resolved "https://registry.yarnpkg.com/source-map-js/-/source-map-js-1.0.2.tgz#adbc361d9c62df380125e7f161f71c826f1e490c"
   integrity sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==
 
+ssr-window@^4.0.0, ssr-window@^4.0.2:
+  version "4.0.2"
+  resolved "https://registry.yarnpkg.com/ssr-window/-/ssr-window-4.0.2.tgz#dc6b3ee37be86ac0e3ddc60030f7b3bc9b8553be"
+  integrity sha512-ISv/Ch+ig7SOtw7G2+qkwfVASzazUnvlDTwypdLoPoySv+6MqlOV10VwPSE6EWkGjhW50lUmghPmpYZXMu/+AQ==
+
 stats.js@^0.17.0:
   version "0.17.0"
   resolved "https://registry.yarnpkg.com/stats.js/-/stats.js-0.17.0.tgz#b1c3dc46d94498b578b7fd3985b81ace7131cc7d"
@@ -844,6 +856,14 @@ suspend-react@^0.0.8:
   version "0.0.8"
   resolved "https://registry.yarnpkg.com/suspend-react/-/suspend-react-0.0.8.tgz#b0740c1386b4eb652f17affe4339915ee268bd31"
   integrity sha512-ZC3r8Hu1y0dIThzsGw0RLZplnX9yXwfItcvaIzJc2VQVi8TGyGDlu92syMB5ulybfvGLHAI5Ghzlk23UBPF8xg==
+
+swiper@^8.3.0:
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/swiper/-/swiper-8.3.0.tgz#3ed7498d978c03fdcebc77e1780c5f17829c6857"
+  integrity sha512-pdrENUco8MVyJ/cTZMQ5c9AqZDRYGJChd+5lcDsoGpKhgOloSzS7hMvgH+ipvTVCaNOCTlSaf5ZYm1Jz5TqKDQ==
+  dependencies:
+    dom7 "^4.0.4"
+    ssr-window "^4.0.2"
 
 three-mesh-bvh@^0.5.10:
   version "0.5.10"

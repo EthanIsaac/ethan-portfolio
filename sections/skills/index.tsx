@@ -1,5 +1,32 @@
+import { SkillsSwiper } from "./skills_swiper";
+import { SkillsContainer } from "./styles";
+
 const Skills = () => {
-  return <div>Skills</div>;
+  return (
+    <SkillsContainer>
+      <SkillsSwiper
+        items={[
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/javascript-original.svg" />,
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+        ]}
+      />
+      <SkillsSwiper
+        reversed
+        items={[
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/docker.png" />,
+        ]}
+      />
+    </SkillsContainer>
+  );
 };
 
 export default Skills;

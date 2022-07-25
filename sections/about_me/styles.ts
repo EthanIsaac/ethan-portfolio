@@ -25,7 +25,7 @@ export const AvatarPicture = styled.div`
 export const Description = styled.div`
   padding: 20px;
   flex: 5;
-  min-width: 420px;
+  min-width: 60vw;
   font-size: ${({ theme }) => theme.fontStyle.sizes.m};
 `;
 
