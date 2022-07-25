@@ -42,13 +42,13 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   `}
 `;
 
-export const MobileHamburgerContainer = styled.div`
+export const MobileHamburgerContainer = styled.div<{ variant: boolean }>`
   display: flex;
   justify-content: flex-end;
   width: 100%;
 
   & > svg {
-    color: ${(props) => props.theme.colors.primary};
+    color: ${(props) => (props.variant ? props.theme.colors.white : props.theme.colors.primary)};
     height: 100%;
     width: 25px;
   }
