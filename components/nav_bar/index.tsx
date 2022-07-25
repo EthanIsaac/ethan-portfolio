@@ -1,6 +1,11 @@
-import { NavBarContainer, SectionsListContainer, SectionTitle } from "./styled";
+import { isMobile } from "react-device-detect";
+import Navigation from "./navigation";
+import { MobileHamburgerContainer, NavBarContainer } from "./styled";
+import { GiHamburgerMenu } from "react-icons/gi";
+import { useState } from "react";
 
 const NavBar = ({ currentSection, sections, onTitleClick }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const variant = currentSection != 0;
 
   return (
@@ -8,19 +13,19 @@ const NavBar = ({ currentSection, sections, onTitleClick }) => {
       <button onClick={() => onTitleClick(0)}>
         <img src="assets/images/coder.png"></img>
       </button>
-      <SectionsListContainer>
-        {sections.map(({ title }: { title: string }, i: number) => (
-          <SectionTitle
-            key={`${i}`}
-            variant={variant}
-            active={currentSection === i}
-            index={i}
-            onClick={() => onTitleClick(i)}
-          >
-            {title}
-          </SectionTitle>
-        ))}
-      </SectionsListContainer>
+      {isMobile && (
+        <MobileHamburgerContainer>
+          <GiHamburgerMenu onClick={() => setIsMenuOpen(!isMenuOpen)} />
+        </MobileHamburgerContainer>
+      )}
+      <Navigation
+        isOpen={isMenuOpen}
+        variant={variant}
+        currentSection={currentSection}
+        sections={sections}
+        onTitleClick={onTitleClick}
+        closeMenu={() => setIsMenuOpen(false)}
+      />
     </NavBarContainer>
   );
 };

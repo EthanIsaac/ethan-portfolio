@@ -42,40 +42,14 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   `}
 `;
 
-export const SectionsListContainer = styled.div`
-  width: 100%;
-  height: auto;
+export const MobileHamburgerContainer = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: right;
-`;
+  justify-content: flex-end;
+  width: 100%;
 
-export const SectionTitle = styled.span<{ index: number; variant: boolean; active: boolean }>`
-  font-size: 1.4em;
-  cursor: pointer;
-  margin: 0 0.5em;
-  animation: backInDown 1s;
-  animation-delay: ${(props) => props.index * 0.2}s;
-  animation-fill-mode: both;
-
-  transition: all 1s;
-
-  ${(props) =>
-    props.variant
-      ? `
-      text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
-      :hover {
-        text-shadow: 0px 0px 10px white;
-      }
-      ${props.active && `text-decoration: underline white;`}
-  `
-      : `
-      text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
-      :hover {
-        text-shadow: 0px 0px 10px ${props.theme.colors.primary};
-      }
-      color: ${props.theme.colors.primary};
-
-      ${props.active && `text-decoration: underline ${props.theme.colors.primary};`}
-`}
+  & > svg {
+    color: ${(props) => props.theme.colors.primary};
+    height: 100%;
+    width: 25px;
+  }
 `;

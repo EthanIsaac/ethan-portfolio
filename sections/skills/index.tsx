@@ -7,8 +7,8 @@ const Skills = () => {
       <SkillsSwiper
         items={[
           <img src="/assets/images/skills/docker.png" />,
-          <img src="/assets/images/skills/javascript-original.svg" />,
-          <img src="/assets/images/skills/docker.png" />,
+          <img src="/assets/images/skills/javascript.svg" />,
+          <img src="/assets/images/skills/go.svg" />,
           <img src="/assets/images/skills/docker.png" />,
           <img src="/assets/images/skills/docker.png" />,
           <img src="/assets/images/skills/docker.png" />,
