@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import useIsMobile from "../../hooks/useIsMobile";
 import WithFade from "../../wrappers/with_fade";
-import { ScrollerContainer, ScrollSectionContainer } from "./styled";
+import Background from "../background";
+import { ContentContainer, ScrollerContainer, ScrollSectionContainer } from "./styled";
 
 interface ScrollerProps {
   id: string;
@@ -10,11 +12,13 @@ interface ScrollerProps {
   sections: Array<{
     title: string;
     Component: () => JSX.Element;
+    cameraPosition: [number, number, number];
   }>;
 }
 
 const Scroller = ({ id, currentSection, dragOffset = 80, onSectionChange, sections }: ScrollerProps) => {
   const [container, setContainer] = useState<HTMLElement>(null);
+  const isMobile = useIsMobile();
   let preventScrollTimer: NodeJS.Timeout = null;
   let dragInitialPosition = 0;
   let touchInitialPosition = 0;
@@ -101,7 +105,7 @@ const Scroller = ({ id, currentSection, dragOffset = 80, onSectionChange, sectio
   };
 
   useEffect(() => {
-    if (container) {
+    if (container && !isMobile) {
       window.onkeydown = handleKeyDown;
       container.onwheel = handleWheel;
       container.onmousedown = handleMouseDown;
@@ -113,7 +117,7 @@ const Scroller = ({ id, currentSection, dragOffset = 80, onSectionChange, sectio
         container.ontouchstart = null;
       };
     }
-  }, [container, currentSection]);
+  }, [container, currentSection, isMobile]);
 
   useEffect(() => {
     setContainer(document.getElementById(id));
@@ -121,13 +125,16 @@ const Scroller = ({ id, currentSection, dragOffset = 80, onSectionChange, sectio
 
   return (
     <ScrollerContainer className={"no-select"} id={id}>
-      {sections.map(({ Component }, i) => (
-        <ScrollSectionContainer key={`${i}`} data-scrolling-id={`${id}-${i}`}>
-          <WithFade visible={i === currentSection}>
-            <Component />
-          </WithFade>
-        </ScrollSectionContainer>
-      ))}
+      <Background position={sections[currentSection].cameraPosition} />
+      <ContentContainer>
+        {sections.map(({ Component }, i) => (
+          <ScrollSectionContainer id={`section-${i}`} key={`${i}`} data-scrolling-id={`${id}-${i}`}>
+            <WithFade visible={isMobile || i === currentSection}>
+              <Component />
+            </WithFade>
+          </ScrollSectionContainer>
+        ))}
+      </ContentContainer>
     </ScrollerContainer>
   );
 };

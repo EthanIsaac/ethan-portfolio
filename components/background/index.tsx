@@ -1,9 +1,9 @@
-import * as THREE from 'three';
-import React, { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { BackgroundContainer } from './styled';
-import { Points, PointMaterial } from '@react-three/drei';
-import theme from '../../utils/theme';
+import * as THREE from "three";
+import React, { useEffect, useRef, useState } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { BackgroundContainer } from "./styled";
+import { Points, PointMaterial } from "@react-three/drei";
+import theme from "../../utils/theme";
 
 const DISTANCE_TO_SLOW_DOWN = 1;
 

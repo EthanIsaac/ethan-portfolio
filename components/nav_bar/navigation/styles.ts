@@ -1,6 +1,6 @@
-import { isMobile } from "react-device-detect";
 import styled from "styled-components";
 import { NAV_BAR_HEIGHT } from "../../../utils/constants/component_sizes";
+import { desktopCss, mobileCss } from "../../../utils/constants/responsiveness";
 
 export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
   width: 100%;
@@ -10,20 +10,15 @@ export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
   justify-content: right;
 
   ${(props) => `
-  ${
-    isMobile &&
-    `
-  
-  position: absolute;
-  top: ${NAV_BAR_HEIGHT};
-  left: 0;
-  overflow: hidden;
-  height: ${props.isOpen ? `calc(100vh - ${NAV_BAR_HEIGHT})` : "0px"};
-  width: 100vw;
-  background: white;
-  flex-direction: column;
-  `
-  }
+  ${mobileCss(`
+    position: absolute;
+    top: ${NAV_BAR_HEIGHT};
+    left: 0;
+    overflow: hidden;
+    height: ${props.isOpen ? `calc(100vh - ${NAV_BAR_HEIGHT})` : "0px"};
+    width: 100vw;
+    background: white;
+    flex-direction: column;`)}
   `}
 `;
 
@@ -37,31 +32,30 @@ export const SectionTitle = styled.span<{ index: number; variant: boolean; activ
 
   transition: all 1s;
 
-  ${isMobile &&
-  `
+  ${mobileCss(`
   width: 100%;
   padding: 1rem;
   padding-right: 50px;
   display: flex;
   justify-content: flex-end;
-  `}
+  `)}
+
+  ${(props) => `  
+  text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
+  :hover {
+    text-shadow: 0px 0px 10px ${props.theme.colors.primary};
+  }
+  color: ${props.theme.colors.primary};
+
+  ${props.active && `text-decoration: underline ${props.theme.colors.primary};`}`}
 
   ${(props) =>
-    props.variant && !isMobile
-      ? `
-      text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
-      :hover {
-        text-shadow: 0px 0px 10px white;
-      }
-      ${props.active && `text-decoration: underline white;`}
-  `
-      : `
-      text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
-      :hover {
-        text-shadow: 0px 0px 10px ${props.theme.colors.primary};
-      }
-      color: ${props.theme.colors.primary};
-
-      ${props.active && `text-decoration: underline ${props.theme.colors.primary};`}
-`}
+    props.variant &&
+    desktopCss(`
+    text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
+    :hover {
+      text-shadow: 0px 0px 10px white;
+    }
+    ${props.active && `text-decoration: underline white;`}
+`)}
 `;

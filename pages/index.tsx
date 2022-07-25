@@ -1,6 +1,5 @@
 import Head from "next/head";
 import { useMemo, useState } from "react";
-import Background from "../components/background";
 import NavBar from "../components/nav_bar";
 import Scroller from "../components/scroller";
 import AboutMe from "../sections/about_me";
@@ -52,10 +51,9 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>{"Ethan Resume"}</title>
+        <title>{"Ethan Trevizo"}</title>
       </Head>
       <NavBar sections={sections} currentSection={currentSection} onTitleClick={handleSectionChange} />
-      <Background position={sections[currentSection].cameraPosition} />
       <Scroller
         id="my-scroller"
         currentSection={currentSection}

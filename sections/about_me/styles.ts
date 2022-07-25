@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { mobileCss } from "../../utils/constants/responsiveness";
 
 export const AboutMeContainer = styled.section``;
 
@@ -23,10 +24,15 @@ export const AvatarPicture = styled.div`
 `;
 
 export const Description = styled.div`
-  padding: 20px;
+  padding: 1rem;
   flex: 5;
   min-width: 60vw;
   font-size: ${({ theme }) => theme.fontStyle.sizes.m};
+
+  ${mobileCss(`
+    padding: 0;
+    padding-top: 1rem;
+  `)}
 `;
 
 export const Title = styled.div`

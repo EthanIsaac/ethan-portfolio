@@ -1,6 +1,6 @@
 import { createGlobalStyle } from "styled-components";
 import { blurIn, blurOut } from "../animations/blur";
-import { isMobile } from "react-device-detect";
+import { mobileCss } from "../utils/constants/responsiveness";
 
 const GlobalStyle = createGlobalStyle`
   html,
@@ -18,23 +18,24 @@ const GlobalStyle = createGlobalStyle`
     }
 
     h1 {
-      ${
-        isMobile
-          ? `
-      font-size: 2rem;
-      `
-          : `
       font-size: 4rem;
-      `
-      }
+      ${mobileCss(`
+      font-size: 2rem;
+      `)}
     }
 
     h2 {
-      ${isMobile ? "font-size: 1.5rem;" : "font-size: 3rem;"}
+      font-size: 3rem;
+      ${mobileCss(`
+      font-size: 1.5rem;
+      `)}
     }
 
     h3 {
-      ${isMobile ? "font-size: 1rem;" : "font-size: 2rem;"}
+      font-size: 2rem;
+      ${mobileCss(`
+      font-size: 1rem;
+      `)}
     }
 
     h4 {

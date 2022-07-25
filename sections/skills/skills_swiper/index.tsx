@@ -10,7 +10,7 @@ import "swiper/css/pagination";
 import { Autoplay } from "swiper";
 import { SkillsSwiperContainer, Slide } from "./styles";
 import { ReactElement } from "react";
-import { isMobile } from "react-device-detect";
+import useIsMobile from "../../../hooks/useIsMobile";
 
 interface ISkillsSwiperProps {
   items: Array<ReactElement>;
@@ -18,6 +18,7 @@ interface ISkillsSwiperProps {
 }
 
 export const SkillsSwiper = ({ items, reversed = false }: ISkillsSwiperProps) => {
+  const isMobile = useIsMobile();
   return (
     <SkillsSwiperContainer>
       <Swiper

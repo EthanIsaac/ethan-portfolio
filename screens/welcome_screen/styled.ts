@@ -1,5 +1,5 @@
-import styled, { keyframes } from 'styled-components';
-import { DURATION_WELCOME_SCREEN } from '../../utils/constants/durations';
+import styled, { keyframes } from "styled-components";
+import { DURATION_WELCOME_SCREEN } from "../../utils/constants/durations";
 
 const rotate = keyframes`
   from {
@@ -12,6 +12,7 @@ const rotate = keyframes`
 `;
 
 export const WelcomeScreenContainer = styled.div`
+  flex: 0;
   display: flex;
   align-items: center;
   justify-content: center;
