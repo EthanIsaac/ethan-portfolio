@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import useIsMobile from "../../hooks/useIsMobile";
-import WithFade from "../../wrappers/with_fade";
 import { ContentContainer, ScrollerContainer, ScrollSectionContainer } from "./styled";
 
 interface ScrollerProps {
@@ -122,16 +121,22 @@ const Scroller = ({ id, currentSection, dragOffset = 80, onSectionChange, sectio
     setContainer(document.getElementById(id));
   }, []);
 
+  const Comp = sections[currentSection].Component;
+
   return (
     <ScrollerContainer className={"no-select"} id={id}>
       <ContentContainer>
-        {sections.map(({ Component }, i) => (
-          <ScrollSectionContainer id={`section-${i}`} key={`${i}`} data-scrolling-id={`${id}-${i}`}>
-            <WithFade visible={isMobile || i === currentSection}>
+        {isMobile ? (
+          sections.map(({ Component }, i) => (
+            <ScrollSectionContainer id={`section-${i}`} key={`${i}`} data-scrolling-id={`${id}-${i}`}>
               <Component />
-            </WithFade>
+            </ScrollSectionContainer>
+          ))
+        ) : (
+          <ScrollSectionContainer>
+            <Comp />
           </ScrollSectionContainer>
-        ))}
+        )}
       </ContentContainer>
     </ScrollerContainer>
   );

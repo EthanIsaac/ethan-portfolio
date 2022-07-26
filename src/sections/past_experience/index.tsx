@@ -1,5 +1,11 @@
+import Layout from "components/layout";
+
 const PastExperience = () => {
-  return <div>Past Experience</div>;
+  return (
+    <Layout>
+      <div>Past Experience</div>
+    </Layout>
+  );
 };
 
 export default PastExperience;

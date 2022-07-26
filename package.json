@@ -8,6 +8,7 @@
     "deploy": "next build && next export && aws s3 sync ./out s3://ethantrevizo.com --profile personal --delete && aws cloudfront create-invalidation --profile personal --distribution-id E130ND0ZBIO9C6 --paths \"/*\""
   },
   "dependencies": {
+    "framer-motion": "^6.5.1",
     "next": "latest",
     "react": "^18.1.0",
     "react-device-detect": "^2.2.2",

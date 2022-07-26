@@ -1,5 +1,11 @@
+import Layout from "components/layout";
+
 const Hobbies = () => {
-  return <div>Hobbies</div>;
+  return (
+    <Layout>
+      <div>Hobbies</div>
+    </Layout>
+  );
 };
 
 export default Hobbies;
