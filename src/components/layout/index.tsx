@@ -15,7 +15,7 @@ const Layout = ({ children }) => {
         animate="enter"
         exit="exit"
         variants={variants}
-        transition={{ delay: 0.5, duration: 0.5, type: "spring", stiffness: 15 }}
+        transition={{ delay: 0.5, duration: 0.5, type: "linear", stiffness: 5 }}
       >
         {children}
       </motion.main>

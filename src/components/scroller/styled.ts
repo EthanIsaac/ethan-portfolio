@@ -20,10 +20,9 @@ export const ContentContainer = styled.div`
   width: 96vw;
   height: 100%;
   margin: 2vh 2vw;
-  background: rgba(0, 0, 0, 0.5);
-  border: white 2px solid;
+  background: rgba(0, 0, 0, 0);
   border-radius: 20px;
-  box-shadow: 0px 0px 50px black;
+  box-shadow: 0px 0px 150px black;
 `;
 
 export const ScrollSectionContainer = styled.div`

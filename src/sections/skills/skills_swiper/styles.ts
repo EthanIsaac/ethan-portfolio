@@ -17,27 +17,25 @@ export const Slide = styled.div`
   align-items: center;
   justify-content: center;
 
-  background: white;
   border-radius: 50%;
-  width: 8vw;
-  height: 8vw;
-
-  ${mobileCss(`
-  width: 5.5em;
-  height: 5.5em;
-  `)}
+  width: 200px;
+  height: 200px;
 
   & > img {
     margin: auto;
     display: block;
     width: auto;
     height: auto;
-    max-width: 5vw;
-    max-height: 5vw;
+    max-width: 150px;
+    max-height: 150px;
+  }
 
-    ${mobileCss(`
+  ${mobileCss(`
+  width: 5.5em;
+  height: 5.5em;
+  & > img {
     max-width: 3.5em;
     max-height: 3.5em;
-    `)}
   }
+  `)}
 `;
