@@ -7,8 +7,11 @@ const Skills = () => {
       <h1>Databases</h1>
       <SkillsSwiper
         items={[
-          <img src="/assets/images/skills/databases/javascript.svg" />,
-          <img src="/assets/images/skills/go.svg" />,
+          <img src="/assets/images/skills/databases/firebase.svg" />,
+          <img src="/assets/images/skills/databases/mongodb.svg" />,
+          <img src="/assets/images/skills/databases/mysql.svg" />,
+          <img src="/assets/images/skills/databases/postgresql.svg" />,
+          <img src="/assets/images/skills/databases/redis.svg" />,
         ]}
       />
       <h1>Programming languages</h1>

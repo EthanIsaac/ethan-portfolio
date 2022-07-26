@@ -10,11 +10,16 @@ export const Slide = styled.div`
   align-items: center;
   justify-content: center;
 
+  width: 130px;
+  height: 130px;
+  background: white;
+  border-radius: 50%;
+
   & > img {
     margin: auto;
     display: block;
-    max-width: 230px;
-    max-height: 95px;
+    max-width: 200px;
+    max-height: 70px;
     width: auto;
     height: auto;
   }

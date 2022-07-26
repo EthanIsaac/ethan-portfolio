@@ -1,14 +1,15 @@
 import { ThemeProvider } from "styled-components";
-import Layout from "components/layout";
 import GlobalStyle from "styles/global_style";
 import theme from "utils/theme";
+import { useState } from "react";
+import WelcomeScreen from "screens/welcome_screen";
 export default function App({ Component, pageProps }) {
+  const [firstRender, setFirstRender] = useState(true);
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyle />
-      <Layout>
-        <Component {...pageProps} />
-      </Layout>
+      <WelcomeScreen onAnimationEnd={() => setFirstRender(false)} />
+      {!firstRender && <Component {...pageProps} />}
     </ThemeProvider>
   );
 }

@@ -7,6 +7,8 @@ export const ScrollerContainer = styled.div`
   ${mobileCss(`
   margin-top: ${NAV_BAR_HEIGHT};
   `)}
+  display: flex;
+  flex-direction: column;
 `;
 
 export const ContentContainer = styled.div`
@@ -16,9 +18,7 @@ export const ContentContainer = styled.div`
   flex: 1;
   box-sizing: border-box;
   width: 96vw;
-  ${desktopCss(`
-  height: calc(100% - 4vh);
-  `)}
+  height: 100%;
   margin: 2vh 2vw;
   background: rgba(0, 0, 0, 0.5);
   border: white 2px solid;

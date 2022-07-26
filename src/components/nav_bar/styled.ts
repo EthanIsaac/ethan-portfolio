@@ -39,7 +39,6 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   ${(props) =>
     props.variant &&
     `
-    height: calc(${NAV_BAR_HEIGHT} - 0.5em);
     box-shadow: none;
     background-color: transparent;
   `}

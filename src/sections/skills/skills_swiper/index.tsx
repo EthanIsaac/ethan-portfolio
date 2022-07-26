@@ -37,8 +37,8 @@ export const SkillsSwiper = ({ items, reversed = false }: ISkillsSwiperProps) =>
         navigation={false}
         modules={[Autoplay]}
       >
-        {items.map((item) => (
-          <SwiperSlide>
+        {items.map((item, i) => (
+          <SwiperSlide key={i}>
             <Slide>{item}</Slide>
           </SwiperSlide>
         ))}

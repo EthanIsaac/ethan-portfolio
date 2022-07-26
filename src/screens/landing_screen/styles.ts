@@ -5,4 +5,5 @@ export const LandingScreenContainer = styled.div`
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  min-height: 100vh;
 `;
