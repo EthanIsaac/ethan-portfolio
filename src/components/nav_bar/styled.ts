@@ -1,10 +1,13 @@
 import styled from "styled-components";
+import { mobileCss } from "utils/constants/responsiveness";
 import { NAV_BAR_HEIGHT } from "../../utils/constants/component_sizes";
 import { DURATION_NAV_BAR_TRANSITION } from "../../utils/constants/durations";
 
 export const NavBarContainer = styled.div<{ variant: boolean }>`
-  display: flex;
+  ${mobileCss(`
   position: fixed;
+  `)}
+  display: flex;
   width: 100%;
   padding: 10px;
   box-sizing: border-box;

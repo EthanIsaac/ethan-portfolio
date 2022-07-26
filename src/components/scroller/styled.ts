@@ -1,10 +1,12 @@
 import styled from "styled-components";
-import { NAV_BAR_HEIGHT } from "../../utils/constants/component_sizes";
-import { desktopCss } from "../../utils/constants/responsiveness";
+import { NAV_BAR_HEIGHT } from "utils/constants/component_sizes";
+import { desktopCss, mobileCss } from "../../utils/constants/responsiveness";
 
 export const ScrollerContainer = styled.div`
-  position: relative;
-  top: ${NAV_BAR_HEIGHT};
+  flex: 1;
+  ${mobileCss(`
+  margin-top: ${NAV_BAR_HEIGHT};
+  `)}
 `;
 
 export const ContentContainer = styled.div`
@@ -15,7 +17,7 @@ export const ContentContainer = styled.div`
   box-sizing: border-box;
   width: 96vw;
   ${desktopCss(`
-  height: calc(100% - 4vh - ${NAV_BAR_HEIGHT});
+  height: calc(100% - 4vh);
   `)}
   margin: 2vh 2vw;
   background: rgba(0, 0, 0, 0.5);

@@ -46,12 +46,14 @@ export const SectionTitle = styled.span<{ index: number; variant: boolean; activ
     text-shadow: 0px 0px 10px ${props.theme.colors.primary};
   }
   color: ${props.theme.colors.primary};
+  `}
 
-  ${props.active && `text-decoration: underline ${props.theme.colors.primary};`}`}
+  ${(props) => props.active && desktopCss(`text-decoration: underline ${props.theme.colors.primary};`)}
 
   ${(props) =>
     props.variant &&
     desktopCss(`
+    color: white;
     text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
     :hover {
       text-shadow: 0px 0px 10px white;

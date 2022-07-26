@@ -7,13 +7,12 @@ import useIsMobile from "../../hooks/useIsMobile";
 const NavBar = ({ currentSection, sections, onTitleClick }) => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const variant = currentSection != 0;
+  const variant = !isMobile && currentSection != 0;
 
   const handleSectionClick = (i: number) => {
-    if (isMobile)
-      return document
-        .getElementById(`section-${i}`)
-        .scrollIntoView({ behavior: "smooth", block: i === 0 ? "end" : "start" });
+    if (isMobile) {
+      document.getElementById(`section-${i}`).scrollIntoView({ behavior: "smooth", block: i === 0 ? "end" : "start" });
+    }
     onTitleClick(i);
   };
 

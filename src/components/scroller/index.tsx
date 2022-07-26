@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import useIsMobile from "../../hooks/useIsMobile";
 import WithFade from "../../wrappers/with_fade";
-import Background from "../background";
 import { ContentContainer, ScrollerContainer, ScrollSectionContainer } from "./styled";
 
 interface ScrollerProps {
@@ -125,7 +124,6 @@ const Scroller = ({ id, currentSection, dragOffset = 80, onSectionChange, sectio
 
   return (
     <ScrollerContainer className={"no-select"} id={id}>
-      <Background position={sections[currentSection].cameraPosition} />
       <ContentContainer>
         {sections.map(({ Component }, i) => (
           <ScrollSectionContainer id={`section-${i}`} key={`${i}`} data-scrolling-id={`${id}-${i}`}>

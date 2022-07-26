@@ -10,7 +10,6 @@ const GlobalStyle = createGlobalStyle`
     color: white;
     font-weight: 400;
     font-size: 16px;
-    overflow: hidden;
 
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */

@@ -6,6 +6,8 @@ import AboutMe from "sections/about_me";
 import Hobbies from "sections/hobbies";
 import PastExperience from "sections/past_experience";
 import Skills from "sections/skills";
+import { LandingScreenContainer } from "./styles";
+import Background from "components/background";
 
 const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 0, 2];
 
@@ -49,10 +51,11 @@ export default function Home() {
   };
 
   return (
-    <>
+    <LandingScreenContainer>
       <Head>
         <title>{"Ethan Trevizo"}</title>
       </Head>
+      <Background position={sections[currentSection].cameraPosition} />
       <NavBar sections={sections} currentSection={currentSection} onTitleClick={handleSectionChange} />
       <Scroller
         id="my-scroller"
@@ -60,6 +63,6 @@ export default function Home() {
         onSectionChange={handleSectionChange}
         sections={sections}
       />
-    </>
+    </LandingScreenContainer>
   );
 }
