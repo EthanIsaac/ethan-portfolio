@@ -2,7 +2,6 @@ import styled from "styled-components";
 import { mobileCss } from "utils/constants/responsiveness";
 
 export const SkillsSwiperContainer = styled.div`
-  height: 200px;
   max-width: 100%;
 
   .swiper-slide {
