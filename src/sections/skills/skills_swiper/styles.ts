@@ -17,16 +17,16 @@ export const Slide = styled.div`
   justify-content: center;
 
   border-radius: 50%;
-  width: 200px;
-  height: 200px;
+  width: 90px;
+  height: 90px;
 
   & > img {
     margin: auto;
     display: block;
     width: auto;
     height: auto;
-    max-width: 150px;
-    max-height: 150px;
+    max-width: 80px;
+    max-height: 80px;
   }
 
   ${mobileCss(`

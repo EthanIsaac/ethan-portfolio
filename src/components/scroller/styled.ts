@@ -36,5 +36,7 @@ export const ScrollSectionContainer = styled.div`
     cursor: grab;
     `,
   )}
+
+  overflow: hidden;
   padding: 2vh 5vw;
 `;
