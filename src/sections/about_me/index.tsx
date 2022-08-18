@@ -32,15 +32,15 @@ const AboutMe = () => {
               <p>
                 My name's Ethan. I'm a Computer Systems Engineer with team and project management skills. I focus on
                 problem solving using modern tools to generate high-impact, innovative ideas.
-                <p>
-                  My areas of greatest interest are technology project management, artificial intelligence, computer
-                  security and cloud computing, so my solution proposals involve different perspectives generating
-                  innovation projects.
-                </p>
-                <p>
-                  My free time is dedicated to playing video games, reading books, practicing dance and traveling inside
-                  and outside of Mexico. I speak Spanish, English and I'm currently studying French.
-                </p>
+              </p>
+              <p>
+                My areas of greatest interest are technology project management, artificial intelligence, computer
+                security and cloud computing, so my solution proposals involve different perspectives generating
+                innovation projects.
+              </p>
+              <p>
+                My free time is dedicated to playing video games, reading books, practicing dance and traveling inside
+                and outside of Mexico. I speak Spanish, English and I'm currently studying French.
               </p>
               <p>Check out some of the projects I've worked on here:</p>
             </Bio>

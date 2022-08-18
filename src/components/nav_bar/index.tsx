@@ -12,7 +12,7 @@ const NavBar = ({ currentSection, sections, onTitleClick }) => {
 
   const handleSectionClick = (i: number) => {
     if (isMobile) {
-      document.getElementById(`section-${i}`).scrollIntoView({ behavior: 'smooth', block: i === 0 ? 'end' : 'start' });
+      document.getElementById(`section-${i}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     onTitleClick(i);
   };
