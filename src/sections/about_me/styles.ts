@@ -1,10 +1,19 @@
 import styled from 'styled-components';
-import { desktopCss, mobileCss } from '../../utils/constants/responsiveness';
+import { desktopCss, landscapeCss, mobileCss } from '../../utils/constants/responsiveness';
 
-export const AboutMeContainer = styled.section``;
+export const AboutMeContainer = styled.section`
+  display: flex;
+  height: 100%;
+`;
 
 export const Overview = styled.div`
   display: flex;
+
+  ${mobileCss(`
+  
+  flex-direction: column;
+  `)}
+
   flex-wrap: wrap;
   margin-top: 20px;
 `;
@@ -33,6 +42,8 @@ export const Quote = styled.div`
 export const Description = styled.div`
   padding: 1rem;
   flex: 5;
+  display: flex;
+  flex-direction: column;
   min-width: 60vw;
   font-size: ${({ theme }) => theme.fontStyle.sizes.m};
 
@@ -48,15 +59,38 @@ export const Description = styled.div`
 
 export const Title = styled.div`
   font-size: ${({ theme }) => theme.fontStyle.sizes.xxl};
-  text-shadow: 0px 0px 10px white;
+  text-shadow: 0px 0px 20px black;
 `;
 
 export const Subtitle = styled.div`
   font-size: ${({ theme }) => theme.fontStyle.sizes.sm};
   font-style: italic;
-  text-shadow: 0px 0px 5px white;
+  text-shadow: 0px 0px 10px black;
 `;
 
 export const Bio = styled.div`
   font-size: ${({ theme }) => theme.fontStyle.sizes.sm};
+`;
+
+export const PreviousProjects = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1;
+
+  ${landscapeCss(`
+  flex-direction: column;
+  `)}
+
+  & > div {
+    flex: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+      width: 25vmin;
+      max-width: 150px;
+      min-width: 50px;
+    }
+  }
 `;

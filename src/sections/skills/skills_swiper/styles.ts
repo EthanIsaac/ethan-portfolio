@@ -1,8 +1,11 @@
-import styled from "styled-components";
-import { mobileCss } from "utils/constants/responsiveness";
+import styled from 'styled-components';
+import { mobileCss } from 'utils/constants/responsiveness';
 
 export const SkillsSwiperContainer = styled.div`
   max-width: 100%;
+
+  background: white;
+  box-shadow: 0px 0px 20px black;
 
   .swiper-slide {
     display: flex;
