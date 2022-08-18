@@ -9,7 +9,7 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   `)}
   display: flex;
   width: 100%;
-  padding: 2vw;
+  padding: 0px 2vw;
   box-sizing: border-box;
   z-index: 5;
 
@@ -48,6 +48,7 @@ export const MobileHamburgerContainer = styled.div<{ variant: boolean }>`
   display: flex;
   justify-content: flex-end;
   width: 100%;
+  cursor: pointer;
 
   & > svg {
     color: ${(props) => (props.variant ? props.theme.colors.white : props.theme.colors.primary)};
