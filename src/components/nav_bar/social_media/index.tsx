@@ -6,7 +6,7 @@ const SocialMedia = () => {
       <SocialMediaItem href='https://www.linkedin.com/in/eibautistat/' target='_blank' rel='noopener noreferrer'>
         <img src='assets/images/social-media/linkedin-logo.png' alt='LinkedIn' />
       </SocialMediaItem>
-      <SocialMediaItem href='https://www.linkedin.com/in/eibautistat/' target='_blank' rel='noopener noreferrer'>
+      <SocialMediaItem href='https://github.com/EthanIsaac' target='_blank' rel='noopener noreferrer'>
         <img src='assets/images/social-media/github-logo.png' alt='Github' />
       </SocialMediaItem>
       <SocialMediaItem href='https://www.instagram.com/ethanisaac96/' target='_blank' rel='noopener noreferrer'>

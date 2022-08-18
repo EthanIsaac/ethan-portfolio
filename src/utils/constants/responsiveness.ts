@@ -1,9 +1,11 @@
 export const MOBILE_MAX_WIDTH_PX = 1200;
 export const MOBILE_MAX_HEIGHT_PX = 900;
+export const MOBILE_CSS_QUERY = `(max-width: ${MOBILE_MAX_WIDTH_PX}px) or (max-height: ${MOBILE_MAX_HEIGHT_PX}px)`;
+export const DESKTOP_CSS_QUERY = `(min-width: ${MOBILE_MAX_WIDTH_PX}px) and (min-height: ${MOBILE_MAX_HEIGHT_PX}px)`;
 
 export const mobileCss = (css: string) => {
   return `
-  @media (max-width: ${MOBILE_MAX_WIDTH_PX}px) or (max-height: ${MOBILE_MAX_HEIGHT_PX}px) {
+  @media ${MOBILE_CSS_QUERY} {
     ${css}
   }
   `;
@@ -11,7 +13,7 @@ export const mobileCss = (css: string) => {
 
 export const desktopCss = (css: string) => {
   return `
-  @media (min-width: ${MOBILE_MAX_WIDTH_PX}px) and (min-height: ${MOBILE_MAX_HEIGHT_PX}px) {
+  @media ${DESKTOP_CSS_QUERY} {
     ${css}
   }
   `;
