@@ -10,6 +10,7 @@ import {
   Quote,
   PreviousProjects,
 } from './styles';
+import ReactTooltip from 'react-tooltip';
 
 const AboutMe = () => {
   return (
@@ -29,34 +30,58 @@ const AboutMe = () => {
             <Bio>
               <p>Hello there!</p>
               <p>
-                My name's Ethan. I'm a Computer Systems Engineer who loves creating things from scratch or improving
-                existing ones.
+                My name's Ethan. I'm a Computer Systems Engineer with team and project management skills. I focus on
+                problem solving using modern tools to generate high-impact, innovative ideas.
+                <p>
+                  My areas of greatest interest are technology project management, artificial intelligence, computer
+                  security and cloud computing, so my solution proposals involve different perspectives generating
+                  innovation projects.
+                </p>
+                <p>
+                  My free time is dedicated to playing video games, reading books, practicing dance and traveling inside
+                  and outside of Mexico. I speak Spanish, English and I'm currently studying French.
+                </p>
               </p>
-              <p>
-                I've grown my career working in Startups since the beginning, some of them were my own entrepreneurship,
-                but you know... sometimes it just doesn't work out. But that never stopped me from keep trying, you can
-                check some of my previous projects here:
-              </p>
+              <p>Check out some of the projects I've worked on here:</p>
             </Bio>
+            <p data-tip='' data-for='test'></p>
             <PreviousProjects>
+              <ReactTooltip id='deprecated' type='warning' effect='solid' place='top' multiline>
+                <span>
+                  This project has been deprecated
+                  <br />
+                  and is no longer available
+                </span>
+              </ReactTooltip>
               <div>
                 <a href='http://siingly.com/' target='_blank' rel='noopener noreferrer'>
-                  <img src='/assets/images/previous-projects/siingly-logo.svg'></img>
+                  <img src='/assets/images/previous-projects/siingly-logo.svg' alt='Siingly'></img>
                 </a>
               </div>
               <div>
                 <a href='http://buscavi.com/' target='_blank' rel='noopener noreferrer'>
-                  <img src='/assets/images/previous-projects/buscavi-logo.png'></img>
+                  <img src='/assets/images/previous-projects/buscavi-logo.png' alt='Buscavi'></img>
                 </a>
               </div>
               <div>
-                <a href='http://siingly.com/' target='_blank' rel='noopener noreferrer'>
-                  <img src='/assets/images/previous-projects/siingly-logo.svg'></img>
+                <a href='https://www.maestro.io/' target='_blank' rel='noopener noreferrer'>
+                  <img src='/assets/images/previous-projects/maestro-logo.svg' alt='Maestro.io'></img>
                 </a>
               </div>
               <div>
-                <a href='http://buscavi.com/' target='_blank' rel='noopener noreferrer'>
-                  <img src='/assets/images/previous-projects/buscavi-logo.png'></img>
+                <a data-tip data-for='deprecated' href='http://loadsy.io/' target='_blank' rel='noopener noreferrer'>
+                  <img src='/assets/images/previous-projects/loadsy-logo.svg' alt='Loadsy'></img>
+                </a>
+              </div>
+              <div>
+                <a
+                  data-tip
+                  data-for='deprecated'
+                  href='http://paxicotech.com/'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                >
+                  <img src='/assets/images/previous-projects/paxico-logo.png' alt='Paxico'></img>
                 </a>
               </div>
             </PreviousProjects>

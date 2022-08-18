@@ -1,13 +1,13 @@
-import Head from "next/head";
-import { useMemo, useState } from "react";
-import NavBar from "components/nav_bar";
-import Scroller from "components/scroller";
-import AboutMe from "sections/about_me";
-import Hobbies from "sections/hobbies";
-import PastExperience from "sections/past_experience";
-import Skills from "sections/skills";
-import { LandingScreenContainer } from "./styles";
-import Background from "components/background";
+import Head from 'next/head';
+import { useMemo, useState } from 'react';
+import NavBar from 'components/nav_bar';
+import Scroller from 'components/scroller';
+import AboutMe from 'sections/about_me';
+import Hobbies from 'sections/hobbies';
+import PastExperience from 'sections/past_experience';
+import Skills from 'sections/skills';
+import { LandingScreenContainer } from './styles';
+import Background from 'components/background';
 
 const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 0, 2];
 
@@ -23,25 +23,25 @@ export default function Home() {
   const sections: Array<Section> = useMemo(
     () => [
       {
-        title: "About me",
+        title: 'About me',
         Component: AboutMe,
         cameraPosition: INITIAL_CAMERA_POSITION,
       },
       {
-        title: "Skills",
+        title: 'Skills',
         Component: Skills,
         cameraPosition: [1, 0, 0],
       },
-      {
-        title: "Past experience",
-        Component: PastExperience,
-        cameraPosition: [1, 2, 2],
-      },
-      {
-        title: "Hobbies",
-        Component: Hobbies,
-        cameraPosition: [2, 1, 2],
-      },
+      // {
+      //   title: "Past experience",
+      //   Component: PastExperience,
+      //   cameraPosition: [1, 2, 2],
+      // },
+      // {
+      //   title: "Hobbies",
+      //   Component: Hobbies,
+      //   cameraPosition: [2, 1, 2],
+      // },
     ],
     [],
   );
@@ -53,12 +53,12 @@ export default function Home() {
   return (
     <LandingScreenContainer>
       <Head>
-        <title>{"Ethan Trevizo"}</title>
+        <title>{'Ethan Trevizo'}</title>
       </Head>
       <Background position={sections[currentSection].cameraPosition} />
       <NavBar sections={sections} currentSection={currentSection} onTitleClick={handleSectionChange} />
       <Scroller
-        id="my-scroller"
+        id='my-scroller'
         currentSection={currentSection}
         onSectionChange={handleSectionChange}
         sections={sections}

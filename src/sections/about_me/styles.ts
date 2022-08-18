@@ -77,12 +77,8 @@ export const PreviousProjects = styled.div`
   flex-wrap: wrap;
   flex: 1;
 
-  ${landscapeCss(`
-  flex-direction: column;
-  `)}
-
   & > div {
-    flex: 50%;
+    flex: 33%;
     display: flex;
     align-items: center;
     justify-content: center;
