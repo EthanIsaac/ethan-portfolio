@@ -18,9 +18,9 @@ const NavBar = ({ currentSection, sections, onTitleClick }) => {
   };
 
   return (
-    <NavBarContainer variant={variant}>
+    <NavBarContainer variant={variant || isMobile}>
       {isMobile && (
-        <MobileHamburgerContainer variant={variant}>
+        <MobileHamburgerContainer isOpen={isMenuOpen}>
           <GiHamburgerMenu onClick={() => setIsMenuOpen(!isMenuOpen)} />
         </MobileHamburgerContainer>
       )}

@@ -12,15 +12,17 @@ export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
   ${(props) => `
   ${mobileCss(`
     position: absolute;
-    top: ${NAV_BAR_HEIGHT};
+    top: 0;
     left: 0;
     overflow: hidden;
-    height: ${props.isOpen ? `calc(100vh - ${NAV_BAR_HEIGHT})` : '0px'};
+    height: ${props.isOpen ? `100vh` : '0px'};
     width: 100vw;
     background: white;
+    ${props.isOpen && `padding-top: ${NAV_BAR_HEIGHT};`}
     padding-right: 1rem;
     box-sizing: border-box;
     flex-direction: column;`)}
+    z-index: -1;
   `}
 `;
 

@@ -44,14 +44,15 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   `}
 `;
 
-export const MobileHamburgerContainer = styled.div<{ variant: boolean }>`
+export const MobileHamburgerContainer = styled.div<{ isOpen: boolean }>`
   display: flex;
   justify-content: flex-end;
   width: 100%;
   cursor: pointer;
 
   & > svg {
-    color: ${(props) => (props.variant ? props.theme.colors.white : props.theme.colors.primary)};
+    color: ${(props) => (props.isOpen ? props.theme.colors.primary : props.theme.colors.white)};
+    transition: all 0.1s !important;
     height: 100%;
     width: 25px;
   }
