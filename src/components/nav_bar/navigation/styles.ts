@@ -26,12 +26,12 @@ export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
   `}
 `;
 
-export const SectionTitle = styled.div.attrs({ align: 'center' })<{
+export const SectionTitle = styled.span.attrs({ align: 'center' })<{
   index: number;
   variant: boolean;
   active: boolean;
 }>`
-  font-size: ${(props) => props.theme.fontStyle.sizes.m};
+  font-size: ${(props) => props.theme.fontStyle.sizes.sm};
   cursor: pointer;
   animation: backInDown 1s;
   animation-delay: ${(props) => props.index * 0.2}s;
@@ -42,32 +42,25 @@ export const SectionTitle = styled.div.attrs({ align: 'center' })<{
 
   margin-right: 2rem;
 
-  ${mobileCss(`
-  width: 100%;
-  padding: 1rem;
-  margin-bottom: 1em;
-  display: flex;
-  justify-content: flex-end;
+  ${(props) => `  
+  color: ${props.theme.colors.primary};
+  margin-bottom: 3px;
+
+  ${desktopCss(`
+  ${props.variant ? `color: white;` : ''}
+  ${props.active ? `border-bottom: 2px solid ${props.variant ? 'white' : props.theme.colors.primary};` : ''}
+    transition: margin-bottom 0.3s !important;
+    :hover {
+      margin-bottom: 10px;
+    }
   `)}
 
-  ${(props) => `  
-  text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
-  :hover {
-    text-shadow: 0px 0px 10px ${props.theme.colors.primary};
-  }
-  color: ${props.theme.colors.primary};
+  ${mobileCss(`
+    width: 100%;
+    padding: 1rem;
+    margin-bottom: 1em;
+    display: flex;
+    justify-content: flex-end;
+    `)}
   `}
-
-  ${(props) => props.active && desktopCss(`text-decoration: underline ${props.theme.colors.primary};`)}
-
-  ${(props) =>
-    props.variant &&
-    desktopCss(`
-    color: white;
-    text-shadow: 0px 2px 5px ${props.theme.colors.shadow};
-    :hover {
-      text-shadow: 0px 0px 10px white;
-    }
-    ${props.active && `text-decoration: underline white;`}
-`)}
 `;
