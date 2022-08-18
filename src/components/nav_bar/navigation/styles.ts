@@ -18,24 +18,32 @@ export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
     height: ${props.isOpen ? `calc(100vh - ${NAV_BAR_HEIGHT})` : '0px'};
     width: 100vw;
     background: white;
+    padding-right: 1rem;
+    box-sizing: border-box;
     flex-direction: column;`)}
   `}
 `;
 
-export const SectionTitle = styled.span<{ index: number; variant: boolean; active: boolean }>`
+export const SectionTitle = styled.div.attrs({ align: 'center' })<{
+  index: number;
+  variant: boolean;
+  active: boolean;
+}>`
   font-size: ${(props) => props.theme.fontStyle.sizes.m};
   cursor: pointer;
-  margin: 0 0.5em;
   animation: backInDown 1s;
   animation-delay: ${(props) => props.index * 0.2}s;
   animation-fill-mode: both;
+  text-align: center;
 
   transition: all 1s;
+
+  margin-right: 2rem;
 
   ${mobileCss(`
   width: 100%;
   padding: 1rem;
-  padding-right: 50px;
+  margin-bottom: 1em;
   display: flex;
   justify-content: flex-end;
   `)}

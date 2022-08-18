@@ -19,9 +19,6 @@ const NavBar = ({ currentSection, sections, onTitleClick }) => {
 
   return (
     <NavBarContainer variant={variant}>
-      <button onClick={() => handleSectionClick(0)}>
-        <img src='assets/images/coder.png'></img>
-      </button>
       {isMobile && (
         <MobileHamburgerContainer variant={variant}>
           <GiHamburgerMenu onClick={() => setIsMenuOpen(!isMenuOpen)} />

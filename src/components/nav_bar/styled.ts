@@ -9,7 +9,7 @@ export const NavBarContainer = styled.div<{ variant: boolean }>`
   `)}
   display: flex;
   width: 100%;
-  padding: 10px;
+  padding: 2vw;
   box-sizing: border-box;
   z-index: 5;
 

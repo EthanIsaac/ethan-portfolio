@@ -6,21 +6,26 @@ const Navigation = ({ variant, currentSection, sections, onTitleClick, closeMenu
   const isMobile = useIsMobile();
   return (
     <SectionsListContainer isOpen={isOpen}>
-      {sections.map(({ title }: { title: string }, i: number) => (
-        <SectionTitle
-          key={`${i}`}
-          variant={variant}
-          active={currentSection === i}
-          index={i}
-          onClick={() => {
-            onTitleClick(i);
-            closeMenu();
-          }}
-        >
-          {title}
+      {(!isMobile || isOpen) &&
+        sections.map(({ title }: { title: string }, i: number) => (
+          <SectionTitle
+            key={`${i}`}
+            variant={variant}
+            active={currentSection === i}
+            index={i}
+            onClick={() => {
+              onTitleClick(i);
+              closeMenu();
+            }}
+          >
+            {title}
+          </SectionTitle>
+        ))}
+      {isMobile && isOpen && (
+        <SectionTitle index={sections.length + 1} variant={false} active={false}>
+          <SocialMedia />
         </SectionTitle>
-      ))}
-      {isMobile && <SocialMedia />}
+      )}
     </SectionsListContainer>
   );
 };

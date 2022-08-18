@@ -1,6 +1,6 @@
-import styled from "styled-components";
-import { NAV_BAR_HEIGHT } from "utils/constants/component_sizes";
-import { desktopCss, mobileCss } from "../../utils/constants/responsiveness";
+import styled from 'styled-components';
+import { NAV_BAR_HEIGHT } from 'utils/constants/component_sizes';
+import { desktopCss, mobileCss } from '../../utils/constants/responsiveness';
 
 export const ScrollerContainer = styled.div`
   flex: 1;

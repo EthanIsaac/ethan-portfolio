@@ -1,11 +1,10 @@
 import styled from 'styled-components';
-import { mobileCss } from 'utils/constants/responsiveness';
+import { desktopCss, mobileCss } from 'utils/constants/responsiveness';
 
 export const SocialMediaContainer = styled.div`
   display: flex;
   align-items: flex-end;
   width: 100%;
-  padding: 0px 2rem;
   box-sizing: border-box;
   align-items: center;
 
@@ -17,10 +16,18 @@ export const SocialMediaContainer = styled.div`
 export const SocialMediaItem = styled.a`
   cursor: pointer;
   display: flex;
-  margin: 0px 2vw;
+
+  ${desktopCss(`
+    margin-right: 2vw;
+  `)}
+
+  ${mobileCss(`
+    margin-left: 2vw;
+  `)}
+
   align-items: center;
 
   img {
-    width: 35px;
+    width: 30px;
   }
 `;
