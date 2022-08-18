@@ -1,14 +1,14 @@
-import { DefaultTheme } from "styled-components";
+import { DefaultTheme } from 'styled-components';
 import {
   COLOR_PRIMARY,
   COLOR_PRIMARY_DARK,
   COLOR_PRIMARY_DARKEST,
   COLOR_PRIMARY_LIGHT,
   COLOR_SHADOW,
-} from "./constants/colors";
-import { GRADIENT_PRIMARY } from "./constants/gradients";
+} from './constants/colors';
+import { GRADIENT_PRIMARY } from './constants/gradients';
 
-declare module "styled-components" {
+declare module 'styled-components' {
   export interface DefaultTheme {
     fontStyle: {
       sizes: Record<string, string>;
@@ -21,13 +21,14 @@ declare module "styled-components" {
 const theme: DefaultTheme = {
   fontStyle: {
     sizes: {
-      xxsm: "0.4rem",
-      xsm: "0.8rem",
-      sm: "1.2rem",
-      m: "1.4rem",
-      l: "1.6rem",
-      xl: "2rem",
-      xxl: "2.5rem",
+      default: '16px',
+      xxsm: '0.4rem',
+      xsm: '0.8rem',
+      sm: '1.2rem',
+      m: '1.4rem',
+      l: '1.6rem',
+      xl: '2rem',
+      xxl: '2.5rem',
     },
   },
   colors: {

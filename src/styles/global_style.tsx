@@ -1,6 +1,6 @@
-import { createGlobalStyle } from "styled-components";
-import { blurIn, blurOut } from "../animations/blur";
-import { mobileCss } from "../utils/constants/responsiveness";
+import { createGlobalStyle } from 'styled-components';
+import { blurIn, blurOut } from '../animations/blur';
+import { mobileCss } from '../utils/constants/responsiveness';
 
 const GlobalStyle = createGlobalStyle`
   html,
@@ -9,7 +9,8 @@ const GlobalStyle = createGlobalStyle`
     margin: 0;
     color: white;
     font-weight: 400;
-    font-size: 16px;
+    font-size: ${(props) => props.theme.fontStyle.sizes.default};
+    font-family: sans-serif;
 
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */

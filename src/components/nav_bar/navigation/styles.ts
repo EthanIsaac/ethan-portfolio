@@ -1,6 +1,6 @@
-import styled from "styled-components";
-import { NAV_BAR_HEIGHT } from "../../../utils/constants/component_sizes";
-import { desktopCss, mobileCss } from "../../../utils/constants/responsiveness";
+import styled from 'styled-components';
+import { NAV_BAR_HEIGHT } from '../../../utils/constants/component_sizes';
+import { desktopCss, mobileCss } from '../../../utils/constants/responsiveness';
 
 export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
   width: 100%;
@@ -15,7 +15,7 @@ export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
     top: ${NAV_BAR_HEIGHT};
     left: 0;
     overflow: hidden;
-    height: ${props.isOpen ? `calc(100vh - ${NAV_BAR_HEIGHT})` : "0px"};
+    height: ${props.isOpen ? `calc(100vh - ${NAV_BAR_HEIGHT})` : '0px'};
     width: 100vw;
     background: white;
     flex-direction: column;`)}
@@ -23,7 +23,7 @@ export const SectionsListContainer = styled.div<{ isOpen?: boolean }>`
 `;
 
 export const SectionTitle = styled.span<{ index: number; variant: boolean; active: boolean }>`
-  font-size: 1.4em;
+  font-size: ${(props) => props.theme.fontStyle.sizes.m};
   cursor: pointer;
   margin: 0 0.5em;
   animation: backInDown 1s;

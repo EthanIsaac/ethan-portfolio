@@ -1,5 +1,5 @@
-import styled from "styled-components";
-import { mobileCss } from "../../utils/constants/responsiveness";
+import styled from 'styled-components';
+import { desktopCss, mobileCss } from '../../utils/constants/responsiveness';
 
 export const AboutMeContainer = styled.section``;
 
@@ -12,7 +12,9 @@ export const Overview = styled.div`
 export const AvatarPicture = styled.div`
   flex: 1;
   display: flex;
+  flex-direction: column;
   justify-content: center;
+  align-items: center;
 
   & > img {
     border-radius: 50%;
@@ -23,11 +25,20 @@ export const AvatarPicture = styled.div`
   }
 `;
 
+export const Quote = styled.div`
+  margin-top: 2rem;
+  font-style: italic; bold;
+`;
+
 export const Description = styled.div`
   padding: 1rem;
   flex: 5;
   min-width: 60vw;
   font-size: ${({ theme }) => theme.fontStyle.sizes.m};
+
+  ${desktopCss(`
+    margin-left: 2rem;
+  `)}
 
   ${mobileCss(`
     padding: 0;
@@ -41,8 +52,9 @@ export const Title = styled.div`
 `;
 
 export const Subtitle = styled.div`
-  font-size: ${({ theme }) => theme.fontStyle.sizes.m};
-  text-shadow: 0px 0px 10px white;
+  font-size: ${({ theme }) => theme.fontStyle.sizes.sm};
+  font-style: italic;
+  text-shadow: 0px 0px 5px white;
 `;
 
 export const Bio = styled.div`

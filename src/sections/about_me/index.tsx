@@ -1,5 +1,5 @@
-import Layout from "components/layout";
-import { AboutMeContainer, AvatarPicture, Description, Title, Overview, Subtitle, Bio } from "./styles";
+import Layout from 'components/layout';
+import { AboutMeContainer, AvatarPicture, Description, Title, Overview, Subtitle, Bio, Quote } from './styles';
 
 const AboutMe = () => {
   return (
@@ -7,7 +7,11 @@ const AboutMe = () => {
       <AboutMeContainer>
         <Overview>
           <AvatarPicture>
-            <img src="/assets/images/ethan-avatar.jpg" />
+            <img src='/assets/images/ethan-avatar.jpg' />
+            <Quote>
+              — "Innovation is a process that requires effort and dedication. Talent without commitment does not
+              generate progress"
+            </Quote>
           </AvatarPicture>
           <Description>
             <Title>Ethan Isaac Bautista Trevizo</Title>
