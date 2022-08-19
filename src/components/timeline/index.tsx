@@ -51,7 +51,7 @@ const Timeline = ({ events }: ITimelineProps) => {
                   </span>
                 </div>
               </ReactTooltip>
-              <Event data-tip data-for={`${i}-${src}`} src={src} onClick={() => setIndex(i)} />
+              <Event isActive={index === i} data-tip data-for={`${i}-${src}`} src={src} onClick={() => setIndex(i)} />
               {i !== events.length - 1 && <Separator />}
             </>
           );

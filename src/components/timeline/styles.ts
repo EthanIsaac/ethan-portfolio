@@ -50,13 +50,17 @@ export const EventsContainer = styled.div`
   `)}
 `;
 
-export const Event = styled.img`
+export const Event = styled.img<{ isActive: boolean }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
   border: 1px solid white;
   padding: 8px;
   cursor: pointer;
+
+  ${(props) => props.isActive && 'box-shadow: 0px 0px 30px white;'}
+
+  transition: box-shadow 0.2s;
 `;
 
 export const Separator = styled.div`
