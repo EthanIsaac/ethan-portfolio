@@ -32,11 +32,11 @@ export default function Home() {
         Component: Skills,
         cameraPosition: [1, 0, 0],
       },
-      // {
-      //   title: "Past experience",
-      //   Component: PastExperience,
-      //   cameraPosition: [1, 2, 2],
-      // },
+      {
+        title: 'Past experience',
+        Component: PastExperience,
+        cameraPosition: [1, 2, 2],
+      },
       // {
       //   title: "Hobbies",
       //   Component: Hobbies,
