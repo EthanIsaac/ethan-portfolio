@@ -58,9 +58,22 @@ export const Event = styled.img<{ isActive: boolean }>`
   padding: 8px;
   cursor: pointer;
 
-  ${(props) => props.isActive && 'box-shadow: 0px 0px 30px white;'}
+  ${(props) =>
+    `
+    ${desktopCss(`
+      margin: 20px 0px;
+      ${props.isActive ? 'margin-top: 0px;' : ''}
+    `)}
 
-  transition: box-shadow 0.2s;
+    ${mobileCss(`
+      margin: 0px 20px;
+      ${props.isActive ? 'margin-right: 0px;' : ''}
+    `)}
+
+    ${props.isActive ? 'box-shadow: 0px 0px 30px white;' : ''}
+  `}
+
+  transition: all 0.2s;
 `;
 
 export const Separator = styled.div`
