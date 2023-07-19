@@ -1,9 +1,10 @@
-import * as THREE from "three";
-import React, { useEffect, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { BackgroundContainer } from "./styled";
-import { Points, PointMaterial } from "@react-three/drei";
-import theme from "../../utils/theme";
+'use client';
+
+import * as THREE from 'three';
+import React, { useEffect, useRef, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Points, PointMaterial } from '@react-three/drei';
+import { Box, useTheme } from '@mui/material';
 
 const DISTANCE_TO_SLOW_DOWN = 1;
 
@@ -28,6 +29,7 @@ function inSphere(buffer: Float32Array, sphere: { radius: number; x0?: number; y
 }
 const Stars = (props) => {
   const ref = useRef<THREE.Points>();
+  const theme = useTheme();
   const [sphere] = useState(() => inSphere(new Float32Array(5000), { radius: 1.5 }));
 
   useFrame((_, delta) => {
@@ -40,8 +42,8 @@ const Stars = (props) => {
       <Points ref={ref} positions={sphere} stride={3} frustumCulled={false} {...props}>
         <PointMaterial
           transparent
-          color={theme.colors.primaryLight}
-          size={0.005}
+          color={theme.palette.primary.contrastText}
+          size={0.002}
           sizeAttenuation={true}
           depthWrite={false}
         />
@@ -93,15 +95,24 @@ interface BackgroundProps {
 }
 
 const Background = ({ position }: BackgroundProps) => {
+  const theme = useTheme();
   return (
-    <BackgroundContainer>
+    <Box
+      sx={{
+        position: 'absolute',
+        zIndex: -1,
+        width: '100%',
+        height: '100%',
+        background: theme.palette.primary.dark,
+      }}
+    >
       <Canvas camera={{ position }}>
         <CameraMovement position={position} />
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
         <Stars />
       </Canvas>
-    </BackgroundContainer>
+    </Box>
   );
 };
 

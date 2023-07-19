@@ -1,17 +1,7 @@
-import styled, { keyframes } from "styled-components";
-import { DURATION_WELCOME_SCREEN } from "../../utils/constants/durations";
+import { styled } from '@mui/material';
+import { DURATION_WELCOME_SCREEN } from '../../utils/constants/durations';
 
-const rotate = keyframes`
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-`;
-
-export const WelcomeScreenContainer = styled.div`
+export const WelcomeScreenContainer = styled('div')`
   flex: 0;
   display: flex;
   align-items: center;
@@ -20,13 +10,13 @@ export const WelcomeScreenContainer = styled.div`
   height: 100vh;
 `;
 
-export const WelcomeScreenBackground = styled.div<{ visible: boolean }>`
+export const WelcomeScreenBackground = styled('div')<{ visible: boolean }>`
   position: absolute;
   width: 100%;
   height: 100%;
-  background: ${(props) => props.theme.gradients.primary};
+  background: ${(props) => props.theme.palette.primary.dark};
   z-index: 100;
-  transition: opacity 1s;
+  transition: opacity 2s ease-in;
   opacity: 1;
 
   ${(props) =>
@@ -37,8 +27,15 @@ export const WelcomeScreenBackground = styled.div<{ visible: boolean }>`
   `}
 `;
 
-export const WelcomeMessage = styled.div`
+export const WelcomeMessage = styled('div')<{ visible: boolean }>`
   animation: bounceInDown;
   animation-duration: ${DURATION_WELCOME_SCREEN};
   text-align: center;
+
+  ${(props) =>
+    !props.visible &&
+    `
+  animation: backOutUp;
+  animation-duration: ${DURATION_WELCOME_SCREEN};
+  `}
 `;

@@ -1,12 +1,12 @@
-import { FooterContainer } from './styled';
+import { Box } from '@mui/material';
 
 const Footer = () => {
   return (
-    <FooterContainer>
-      <a href="https://www.flaticon.com/free-icons/web-development" title="web development icons">
+    <Box>
+      <a href='https://www.flaticon.com/free-icons/web-development' title='web development icons'>
         Web development icons created by surang - Flaticon
       </a>
-    </FooterContainer>
+    </Box>
   );
 };
 

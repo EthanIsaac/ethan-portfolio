@@ -1,5 +1,5 @@
-import { motion } from "framer-motion";
-import { LayoutContainer } from "./styled";
+import { Box } from '@mui/material';
+import { motion } from 'framer-motion';
 
 const variants = {
   hidden: { opacity: 0 },
@@ -9,17 +9,17 @@ const variants = {
 
 const Layout = ({ children }) => {
   return (
-    <LayoutContainer>
+    <Box>
       <motion.main
-        initial="hidden"
-        animate="enter"
-        exit="exit"
+        initial='hidden'
+        animate='enter'
+        exit='exit'
         variants={variants}
-        transition={{ delay: 0.5, duration: 0.5, type: "linear", stiffness: 5 }}
+        transition={{ delay: 0.5, duration: 0.5, type: 'linear', stiffness: 5 }}
       >
         {children}
       </motion.main>
-    </LayoutContainer>
+    </Box>
   );
 };
 

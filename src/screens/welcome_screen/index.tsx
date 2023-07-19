@@ -1,3 +1,4 @@
+'use client';
 import React, { useState } from 'react';
 import { WelcomeMessage, WelcomeScreenBackground, WelcomeScreenContainer } from './styled';
 
@@ -11,6 +12,7 @@ const WelcomeScreen = ({ onAnimationEnd }: WelcomeScreenProps) => {
     <WelcomeScreenBackground visible={visible}>
       <WelcomeScreenContainer>
         <WelcomeMessage
+          visible={visible}
           onAnimationEnd={() => {
             setVisible(false);
             onAnimationEnd();

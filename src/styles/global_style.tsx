@@ -1,65 +1,68 @@
-import { createGlobalStyle } from 'styled-components';
 import { blurIn, blurOut } from '../animations/blur';
 import { mobileCss } from '../utils/constants/responsiveness';
+import { League_Spartan } from 'next/font/google';
+import { Interpolation, Theme } from '@mui/material';
 
-const GlobalStyle = createGlobalStyle`
-  html,
-  body {
-    padding: 0;
-    margin: 0;
-    color: white;
-    font-weight: 400;
-    font-size: ${(props) => props.theme.fontStyle.sizes.default};
-    font-family: sans-serif;
+const leagueSpartan = League_Spartan({ subsets: ['latin'] });
 
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-    ::-webkit-scrollbar {
-      display: none;
-    }
+const GlobalStyle: Interpolation<Theme> = (theme) => `
+html,
+body {
+	height: 100dvh;
+	padding: 0;
+	margin: 0;
+	color: white;
+	font-weight: 400;
+	font-family: ${leagueSpartan.style.fontFamily};
 
-    h1 {
-      font-size: 4rem;
-      ${mobileCss(`
-      font-size: 2rem;
-      `)}
-    }
+	-ms-overflow-style: none;  /* IE and Edge */
+	scrollbar-width: none;  /* Firefox */
+	::-webkit-scrollbar {
+		display: none;
+	}
 
-    h2 {
-      font-size: 3rem;
-      ${mobileCss(`
-      font-size: 1.5rem;
-      `)}
-    }
+	h1 {
+		font-size: 4rem;
+		${mobileCss(`
+		font-size: 2rem;
+		`)}
+	}
 
-    h3 {
-      font-size: 2rem;
-      ${mobileCss(`
-      font-size: 1rem;
-      `)}
-    }
+	h2 {
+		font-size: 3rem;
+		${mobileCss(`
+		font-size: 1.5rem;
+		`)}
+	}
 
-    h4 {
-      font-size: 1.3rem;
-    }
+	h3 {
+		font-size: 2rem;
+		${mobileCss(`
+		font-size: 1rem;
+		`)}
+	}
 
-    h5 {
-      font-size: 1rem;
-    }
+	h4 {
+		font-size: 1.3rem;
+	}
 
-    .no-select {
-      -webkit-touch-callout: none; /* iOS Safari */
-        -webkit-user-select: none; /* Safari */
-         -khtml-user-select: none; /* Konqueror HTML */
-           -moz-user-select: none; /* Old versions of Firefox */
-            -ms-user-select: none; /* Internet Explorer/Edge */
-                user-select: none; /* Non-prefixed version, currently
-                                      supported by Chrome, Edge, Opera and Firefox */
-    }
+	h5 {
+		font-size: 1rem;
+	}
 
-    ${blurIn}
-    ${blurOut}
-  }
+	.no-select {
+		-webkit-touch-callout: none; /* iOS Safari */
+			-webkit-user-select: none; /* Safari */
+			 -khtml-user-select: none; /* Konqueror HTML */
+				 -moz-user-select: none; /* Old versions of Firefox */
+					-ms-user-select: none; /* Internet Explorer/Edge */
+							user-select: none; /* Non-prefixed version, currently
+																		supported by Chrome, Edge, Opera and Firefox */
+	}
+
+	${blurIn}
+	${blurOut}
+}
 `;
 
 export default GlobalStyle;

@@ -1,7 +1,7 @@
-import styled from 'styled-components';
+import { styled } from '@mui/material';
 import { desktopCss, mobileCss } from 'utils/constants/responsiveness';
 
-export const TimelineContainer = styled.div`
+export const TimelineContainer = styled('div')`
   display: flex;
   height: 100%;
   width: 100%;
@@ -15,7 +15,7 @@ export const TimelineContainer = styled.div`
   `)}
 `;
 
-export const ContentContainer = styled.div`
+export const ContentContainer = styled('div')`
   flex: 1;
   height: 100%;
   background: rgba(255, 255, 255, 0.2);
@@ -36,7 +36,7 @@ export const ContentContainer = styled.div`
   `)}
 `;
 
-export const EventsContainer = styled.div`
+export const EventsContainer = styled('div')`
   display: flex;
   align-items: center;
 
@@ -50,7 +50,7 @@ export const EventsContainer = styled.div`
   `)}
 `;
 
-export const Event = styled.img<{ isActive: boolean }>`
+export const Event = styled('img')<{ isActive: boolean }>`
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -76,7 +76,7 @@ export const Event = styled.img<{ isActive: boolean }>`
   transition: all 0.2s;
 `;
 
-export const Separator = styled.div`
+export const Separator = styled('div')`
   flex: 1;
   background: white;
   height: 2px;
