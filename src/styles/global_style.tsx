@@ -20,36 +20,6 @@ body {
 	::-webkit-scrollbar {
 		display: none;
 	}
-
-	h1 {
-		font-size: 4rem;
-		${mobileCss(`
-		font-size: 2rem;
-		`)}
-	}
-
-	h2 {
-		font-size: 3rem;
-		${mobileCss(`
-		font-size: 1.5rem;
-		`)}
-	}
-
-	h3 {
-		font-size: 2rem;
-		${mobileCss(`
-		font-size: 1rem;
-		`)}
-	}
-
-	h4 {
-		font-size: 1.3rem;
-	}
-
-	h5 {
-		font-size: 1rem;
-	}
-
 	.no-select {
 		-webkit-touch-callout: none; /* iOS Safari */
 			-webkit-user-select: none; /* Safari */
