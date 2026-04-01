@@ -1,13 +1,15 @@
-'use client';
-import React, { useState } from 'react';
-import { WelcomeMessage, WelcomeScreenBackground, WelcomeScreenContainer } from './styled';
+"use client";
+import { Typography, useTheme } from "@mui/material";
+import React, { useState } from "react";
+import {
+  WelcomeMessage,
+  WelcomeScreenBackground,
+  WelcomeScreenContainer,
+} from "./styled";
 
-interface WelcomeScreenProps {
-  onAnimationEnd: () => void;
-}
-
-const WelcomeScreen = ({ onAnimationEnd }: WelcomeScreenProps) => {
+const WelcomeScreen = () => {
   const [visible, setVisible] = useState(true);
+  const theme = useTheme();
   return (
     <WelcomeScreenBackground visible={visible}>
       <WelcomeScreenContainer>
@@ -15,11 +17,15 @@ const WelcomeScreen = ({ onAnimationEnd }: WelcomeScreenProps) => {
           visible={visible}
           onAnimationEnd={() => {
             setVisible(false);
-            onAnimationEnd();
           }}
         >
-          <h1>Welcome to my site!</h1>
-          <h3>This site is still under development...</h3>
+          <Typography variant="h3">
+            Welcome to my{" "}
+            <span style={{ color: theme.palette.primary.main }}>
+              {" "}
+              personal website
+            </span>
+          </Typography>
         </WelcomeMessage>
       </WelcomeScreenContainer>
     </WelcomeScreenBackground>

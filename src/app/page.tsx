@@ -4,6 +4,7 @@ import Background from 'components/background';
 import { Intro } from 'landing-sections/intro';
 import { WhoIsEthan } from 'landing-sections/whoIsEthan';
 import { MyExperience } from 'landing-sections/my-experience';
+import { MyEducation } from 'landing-sections/my-education';
 import { TechStack } from 'landing-sections/tech-stack';
 
 const Landing = () => {
@@ -13,6 +14,7 @@ const Landing = () => {
       <Intro />
       <WhoIsEthan />
       <MyExperience />
+      <MyEducation />
       <TechStack />
     </Box>
   );
