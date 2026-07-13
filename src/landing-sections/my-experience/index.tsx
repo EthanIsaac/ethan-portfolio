@@ -95,15 +95,16 @@ export const MyExperience = () => {
         logo: <SiRiotgames size="50px" />,
         description: (
           <>
-            Riot Games is a videogame company, responsible for publishing some
-            of the most famous games such as League of Legends, Valorant,
-            Teamfight Tactics, Wild Rift and some others.
+            Riot Games is a global gaming company behind some of the
+            industry's most iconic titles, including League of Legends,
+            Valorant, Teamfight Tactics, and Wild Rift.
             <br />
-            <br />I work with the Global Player Support team and I am
-            responsible for creating new features and bug fixing of our internal
-            platforms. I have proposed multiple tools and refactors to improve
-            the backend services performance along with some Typescript and
-            React updates for our frontend platforms.
+            <br />
+            I work within the Global Player Support organization, where I
+            design and ship new features while driving bug fixes across our
+            internal platforms. I've led multiple tools and refactors that
+            improved backend service performance, alongside modernizing our
+            frontend platforms with TypeScript and React.
           </>
         ),
       },
@@ -122,20 +123,21 @@ export const MyExperience = () => {
         ),
         description: (
           <>
-            Siingly is a revolutionary Dating App that focuses on Quality Over
-            Quantity.
+            Siingly is a dating app built on a simple premise: quality over
+            quantity.
             <br />
             <br />
-            I met Daniel (my partner and CEO at Siingly) in 2019 when I started
-            working at Paxico Technologies. We became partners and started
-            working on this project with little to no money or investment.
+            I partnered with Daniel, my co-founder and CEO, after meeting him
+            in 2019 while working together at Paxico Technologies. We built
+            this company from the ground up, bootstrapping the product with
+            little to no outside capital.
             <br />
             <br />
-            As the technical leader I have successfully launched the mobile app,
-            website, internal dashboard platform, and our backend architecture
-            using the aws and gcp platforms. Also, I implemented a CI/CD
-            pipeline that allows us to distribute new versions of our
-            applications in minutes.
+            As technical leader, I drove the end-to-end strategy behind our
+            mobile app, website, internal dashboard, and cloud backend across
+            AWS and GCP. I also built a CI/CD pipeline that cut our release
+            cycle down to minutes, letting us ship and iterate with
+            confidence.
           </>
         ),
       },
@@ -155,15 +157,16 @@ export const MyExperience = () => {
         ),
         description: (
           <>
-            The Institutes is a company that provides courses and certifications
-            for agents working on risk management and insurances.
+            The Institutes is a leading provider of courses and
+            certifications for professionals in risk management and
+            insurance.
             <br />
             <br />
-            As part of the technical leadership I was responsible for the
-            architectural design, prioritization and tracking of multiple
-            features for the platform. I provided technical knowledge of the app
-            for junior developers and was responsible for the migration of the
-            components library to React + Typescript.
+            As part of the technical leadership team, I owned architectural
+            design decisions and drove prioritization and delivery across
+            multiple platform features. I mentored junior developers and led
+            the migration of our components library to React and TypeScript,
+            strengthening the platform's long-term technical foundation.
           </>
         ),
       },
@@ -182,19 +185,18 @@ export const MyExperience = () => {
         ),
         description: (
           <>
-            Loadsy is a Load Testing Tool for engineering folks.
+            Loadsy is a load testing platform built for engineering teams.
             <br />
             <br />
-            Along with the Paxico Founders, we built this project from scratch
-            to provide load testing capabilities to the engineering teams CI/CD
-            pipeline.
+            Alongside the Paxico founders, I built this project from the
+            ground up to bring load testing capabilities directly into
+            engineering teams' CI/CD pipelines.
             <br />
-            <br />I took full responsibility for the architectural design and
-            development of this project. Leading a team of 5 engineers we
-            brought this project to life after 6 months of development. All the
-            architecture was deployed in AWS using Kubernetes + ArgoCD for the
-            backend Golang microservices and the frontent was deployed as a
-            static SPA in AWS S3 with CloudFront as our CDN.
+            <br />I owned the architectural design and led a team of 5
+            engineers, taking the product from concept to launch in 6 months.
+            The backend ran on Golang microservices deployed to AWS via
+            Kubernetes and ArgoCD, while the frontend was distributed as a
+            static SPA on AWS S3 with CloudFront as our CDN.
           </>
         ),
       },
@@ -213,16 +215,15 @@ export const MyExperience = () => {
         ),
         description: (
           <>
-            Paxico is a Staff Augmentation company, but also cradle of
-            entrepreneurship. So along with providing engineering force to our
-            clients, we developed internal projects (such as Loadsy and
-            Siingly).
+            Paxico is a staff augmentation company and a launchpad for
+            entrepreneurship — alongside providing engineering talent to
+            clients, we built internal ventures such as Loadsy and Siingly.
             <br />
-            <br />I joined as an intern back in 2019, quickly grew my knowledge
-            to become a Software Engineer, then team leader and finally, due to
-            my commitment, hard work and excellent skills I became partner of
-            the company and led the Engineering department as Vice President of
-            Engineering.
+            <br />I joined as an intern in 2019 and grew quickly, progressing
+            from Software Engineer to team leader. Through consistent
+            delivery and technical ownership, I earned a partnership in the
+            company and went on to lead the Engineering department as Vice
+            President of Engineering.
           </>
         ),
       },
@@ -241,16 +242,15 @@ export const MyExperience = () => {
         ),
         description: (
           <>
-            The Tecnológico de Monterrey is one of the most prestigious private
-            universities in Mexico, and, my Alma Máter.
+            Tecnológico de Monterrey is one of the most prestigious private
+            universities in Mexico, and my alma mater.
             <br />
             <br />
-            My skills and desire to help others sent me in the direction of
-            teaching. I educated students from 15 to 18 years old to learn the
-            basics or programming using a small Python library called Turtle. I
-            guided them through the semester to create, from scratch, the
-            conceptual design, materials, and developent of their own video
-            game.
+            My passion for teaching led me to guide students aged 15 to 18
+            through the fundamentals of programming using Python's Turtle
+            library. Over the course of a semester, I mentored them from
+            concept to completion as they designed and built their own video
+            games from scratch.
           </>
         ),
       },
@@ -269,15 +269,15 @@ export const MyExperience = () => {
         ),
         description: (
           <>
-            Maestro is a Streaming Platform for individuals or organizations
-            looking to create and broadcast content to millions of users while
-            keeping the earnings for themselves, and directing the traffic to
-            their own site instead of a streaming platform.
+            Maestro is a streaming platform that empowers individuals and
+            organizations to broadcast content to millions of viewers while
+            keeping the earnings for themselves and directing traffic to
+            their own site instead of a third-party platform.
             <br />
-            <br />I joined as a Software Engineer and quickly became a leader,
-            designing and building with a small team of 3 people multiple of the
-            features that Maestro offers nowadays, but also, some of the
-            internal mechanisms to handle potential service outtages.
+            <br />I joined as a Software Engineer and quickly stepped into a
+            leadership role, designing and building — alongside a small team
+            of 3 — many of the core features Maestro relies on today, as well
+            as internal mechanisms to safeguard against service outages.
           </>
         ),
       },
@@ -296,25 +296,23 @@ export const MyExperience = () => {
         ),
         description: (
           <>
-            Buscavi is a real estate company with a technological foundation
-            that seeks to advise people to make the best decision in the
-            purchase of their home. We offer a comprehensive service from the
-            analysis of the financial situation, choice of credit, financial
-            plans, analysis and choice of housing, as well as advice on legal
-            processes. In addition to the main business, Buscavi is the cradle
-            of entrepreneurship, which is why we create and develop
-            technological projects in different areas.
+            Buscavi is a real estate company built on a technology-first
+            foundation, helping people make confident decisions when
+            purchasing a home. We provide end-to-end guidance — from
+            financial analysis and credit selection to housing evaluation and
+            legal process support. Beyond our core business, Buscavi also
+            serves as a launchpad for new technology ventures across
+            different industries.
             <br />
-            <br />I kickstarted my career as developer and leader with a small
-            familiar project. My family has been in the industry of real estate
-            for years and with my technological knowledge we built this company
-            from scratch.
+            <br />I kickstarted my career as a developer and leader on this
+            family project. My family has worked in real estate for years,
+            and together we built this company from scratch by pairing that
+            industry expertise with technology.
             <br />
-            <br />I designed and developer multiple internal tools to allow our
-            real estate agents to provide a better quality of service to our
-            clients. Those tools were designed to help clients make a better
-            choice, depending of their intentions, either for buying a home or
-            investing.
+            <br />I designed and developed multiple internal tools that
+            helped our agents deliver a higher standard of service, guiding
+            clients toward better decisions whether they were buying a home
+            or investing.
           </>
         ),
       },
