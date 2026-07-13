@@ -54,8 +54,42 @@ export const MyExperience = () => {
   const experiences: Array<IExperienceProps> = useMemo(
     () => [
       {
+        company: "Capital One",
+        duration: "Apr 2026 - Present",
+        role: "Senior Engineering Manager",
+        link: "https://www.capitalone.com",
+        logo: (
+          <Image
+            src="/assets/images/experience/capital-one-logo.png"
+            alt="Capital One"
+            width="150"
+            height="84"
+          />
+        ),
+        description: (
+          <>
+            Capital One is a Fortune 100 financial technology company
+            reinventing banking through data, engineering, and a
+            relentless bet on AI to redefine what a bank can be.
+            <br />
+            <br />
+            I lead engineering initiatives at the Mexico Tech Hub, building
+            and scaling teams at the frontier of this new era of
+            AI-driven innovation. My focus is on translating emerging AI
+            capabilities into resilient, production-grade systems, while
+            growing a culture of technical excellence and ownership across
+            the engineers I lead.
+            <br />
+            <br />
+            From architecture decisions to talent development, I'm helping
+            shape how the Mexico Tech Hub builds the next generation of
+            intelligent financial products.
+          </>
+        ),
+      },
+      {
         company: "Riot Games",
-        duration: "Oct 2022 - Present",
+        duration: "Oct 2022 - Apr 2026",
         role: "Senior Software Engineer",
         link: "https://riotgames.com",
         logo: <SiRiotgames size="50px" />,
