@@ -1,0 +1,27 @@
+# Engineering Office policy for this repository. The office reads it from the default
+# branch only; changes to .office/ are always merged by a human.
+# Reference: the Engineering Office docs, `office.yaml` section.
+version: 1
+
+# Extra roles (optional). Charters go in .office/agents/<role>.md.
+# roles:
+#   web-engineer: {kind: implementer, model: sonnet,
+#                  charter: .office/agents/web-engineer.md}
+
+owners:            # first match wins; the last rule must be the catch-all
+  - ["**", implementer]
+
+commands:
+  setup: "yarn install --frozen-lockfile"
+  test: "echo 'Set commands.test in .office/office.yaml' >&2; exit 1"
+  build: "yarn build"
+
+integrity: [typescript]
+
+# Paths only you merge, in addition to .office/, CI, infra/ and specs.
+human_merge_paths: []
+
+budgets: {story_usd: 15, story_agent_runs: 20, max_parallel_implementers: 2}
+
+# Status names on your Jira board for approving a story and approving its merge.
+jira: {approve_status: Approved, merge_approve_status: Merge approved}
