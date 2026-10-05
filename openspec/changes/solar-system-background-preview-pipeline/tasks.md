@@ -5,7 +5,7 @@ All tasks are owned by the `implementer` role (the only owner in `.office/office
 
 ## 1. Make main the source of truth (EP-25)
 
-- [ ] 1.1 Open a PR that merges `origin/development` into `main`, keeping `.office/` and `openspec/` from `main` (commit `4efbcbd`) and taking every other path from `development` (resolve the `package.json` conflict with development's version) [M-3]. Verify: `git diff origin/development <merge-branch> -- . ':!.office' ':!openspec'` is empty, `.office/` and `openspec/` match `main`, and `yarn install --frozen-lockfile && yarn build` succeeds and writes `out/`. The stakeholder merges it with `/merge`.
+- [x] 1.1 Open a PR that merges `origin/development` into `main`, keeping `.office/` and `openspec/` from `main` (commit `4efbcbd`) and taking every other path from `development` (resolve the `package.json` conflict with development's version) [M-3]. Verify: `git diff origin/development <merge-branch> -- . ':!.office' ':!openspec'` is empty, `.office/` and `openspec/` match `main`, and `yarn install --frozen-lockfile && yarn build` succeeds and writes `out/`. The stakeholder merges it with `/merge`. (verified: PR #6; test-auditor @e6dcad6, code-reviewer @e6dcad6, spec-steward @e6dcad6, code-reviewer @e6dcad6, test-auditor @e6dcad6, spec-steward @e6dcad6, code-reviewer @e6dcad6, test-auditor @e6dcad6, spec-steward @e6dcad6)
 
 ## 2. AWS access bootstrap (EP-26)
 
