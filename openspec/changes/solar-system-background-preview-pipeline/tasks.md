@@ -3,27 +3,27 @@
 All tasks are owned by the `implementer` role (the only owner in `.office/office.yaml`).
 `office.yaml` defines no test command, so each task names its own verification.
 
-## 1. Make main the source of truth
+## 1. Make main the source of truth (EP-25)
 
 - [ ] 1.1 Open a PR that merges `origin/development` into `main`, keeping `.office/` and `openspec/` from `main` (commit `4efbcbd`) and taking every other path from `development` (resolve the `package.json` conflict with development's version) [M-3]. Verify: `git diff origin/development <merge-branch> -- . ':!.office' ':!openspec'` is empty, `.office/` and `openspec/` match `main`, and `yarn install --frozen-lockfile && yarn build` succeeds and writes `out/`. The stakeholder merges it with `/merge`.
 
-## 2. AWS access bootstrap
+## 2. AWS access bootstrap (EP-26)
 
 - [ ] 2.1 Add the one-time bootstrap CloudFormation template (GitHub OIDC provider + IAM role trusted only for this repository's workflows, permissions scoped to the dev stacks, explicit deny on bucket `ethantrevizo.com` and distribution `E130ND0ZBIO9C6`), outputting the role ARN. Satisfies ci-aws-access "OIDC bootstrap template" and preview-deployment "Prod isolation". Verify: `aws cloudformation validate-template` (or `cfn-lint`) passes, and a review of the policy shows the explicit deny on both prod resources and no access-key creation.
 - [ ] 2.2 Write step-by-step stakeholder instructions (deploy the bootstrap stack, copy the role ARN output, add it to the repo as the variable or secret the workflow reads). Satisfies ci-aws-access "Stakeholder setup instructions". Verify: each step names the exact console or CLI action and value, and no step creates long-lived AWS keys.
 
-## 3. Dev infrastructure
+## 3. Dev infrastructure (EP-27)
 
 - [ ] 3.1 Add the `us-east-1` CloudFormation template that holds only the ACM certificate for `dev.ethantrevizo.com` (DNS-validated in the existing `ethantrevizo.com` hosted zone) and outputs its ARN. Satisfies preview-deployment "Certificate stack in us-east-1". Verify: template validation passes and the template declares no resource other than the certificate.
 - [ ] 3.2 Add the `us-east-2` CloudFormation template with a new private S3 bucket, a CloudFront distribution using the certificate ARN parameter, and Route 53 alias record(s) for `dev.ethantrevizo.com` in the existing hosted zone. Satisfies preview-deployment "Dev hosting stack". Verify: template validation passes and no resource references `ethantrevizo.com` (the bucket) or `E130ND0ZBIO9C6`.
 
-## 4. [PREVIEW] pipeline
+## 4. [PREVIEW] pipeline (EP-28)
 
 - [ ] 4.1 Add the GitHub Actions workflow in `.github/workflows/` that runs only for PRs into `main` whose title starts with `[PREVIEW]` (including new commits), serializes runs so the newest wins, assumes the bootstrap role via OIDC, creates or updates both stacks, runs `yarn build`, syncs `out/` to the dev bucket and invalidates only the dev distribution. Satisfies preview-deployment "Preview trigger", "Redeploy on new commits", "Single serialized preview", "Prod isolation" and ci-aws-access "Keyless workflow authentication". Verify: `actionlint` passes. A `[PREVIEW]` PR deploys and serves `https://dev.ethantrevizo.com`, a follow-up commit redeploys it, and a PR without the prefix triggers no deploy.
 - [ ] 4.2 Add the Lighthouse desktop-preset step against `https://dev.ethantrevizo.com` that fails the run when the performance score is below a configurable threshold (initial value 90), and reports the score. Satisfies preview-deployment "Lighthouse performance gate". Verify: lowering or raising the configured threshold on a test run flips the step between pass and fail without editing workflow logic.
 - [ ] 4.3 Document the preview process in the repo README: the `[PREVIEW]` title convention, the team rule of at most one open `[PREVIEW]` PR [M-5], that the preview persists until replaced, where the Lighthouse threshold is configured, and the escalation rule (fix and escalate only after the check passes or after 3 failed fix attempts) [M-4]. Verify: the README section covers each of these points.
 
-## 5. Solar System background
+## 5. Solar System background (EP-29)
 
 - [ ] 5.1 Add the background config module: the exact 33-body catalogue (Sun, 8 planets, Pluto, Ceres, Eris, Haumea, Makemake, the 19 listed moons) with compressed order-preserving distances, rough relative sizes, real colour palettes, shape data, ring flags (Jupiter, Saturn, Uranus, Neptune), atmosphere flags (Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune), and fps targets (mobile 30, desktop 60). Satisfies landing-background "Exact set of bodies", "Compressed artistic scale" and "Frame-rate targets as configuration". Verify: `yarn build` passes, and a review confirms 33 unique entries matching the list, increasing planet distances Mercury→Neptune, and the flags set exactly on the listed bodies.
 - [ ] 5.2 Replace the random star field in `src/components/background/index.tsx` with the Solar System scene: procedural (shader or noise) surfaces for the Sun, planets and dwarf planets with no texture or model files, static bodies, and no click handling. Leave the rest of the page unchanged. Satisfies landing-background "Solar System scene replaces the star field", "Realistic procedural appearance", "Static bodies and no interaction" and "Foreground unchanged". Verify: `yarn build` passes, the browser network panel shows no texture or model requests, and the diff touches only background code (plus `src/app/page.tsx` only if its background props change).
@@ -33,6 +33,6 @@ All tasks are owned by the `implementer` role (the only owner in `.office/office
 - [ ] 5.6 Implement smooth scroll-driven camera drift along a developer-chosen path, plus a still view (no scroll-driven movement) when `prefers-reduced-motion: reduce` is set. Satisfies landing-background "Scroll-driven camera drift" and "Reduced motion". Verify: `yarn build` passes. In `yarn dev` the camera follows scroll smoothly, and with reduced motion emulated in DevTools the background stays still while scrolling.
 - [ ] 5.7 Performance pass for desktop and mobile: same scene on mobile, quality knobs in config, lean bundle and deferred scene start, so scrolling meets the configured fps targets and the page loads in about 1 s on Wi-Fi. Satisfies landing-background "Same scene on mobile", "Frame-rate targets as configuration" and "Lean page load". Verify: on the `[PREVIEW]` deploy, Lighthouse desktop performance is at or above the threshold (90), and the DevTools performance trace while scrolling shows ≥60 fps on desktop and ≥30 fps under the agreed mid-range phone conditions (see proposal open question 2).
 
-## 6. Integration acceptance
+## 6. Integration acceptance (EP-30)
 
 - [ ] 6.1 Run the end-to-end check on a `[PREVIEW]` PR carrying the background work: the pipeline passes (including Lighthouse ≥ 90), `dev.ethantrevizo.com` works on the latest Chrome, Safari and Firefox (desktop), iOS Safari and Android Chrome, a second commit redeploys, and bucket `ethantrevizo.com` and distribution `E130ND0ZBIO9C6` are unchanged (compare the object listing / last-modified and the distribution `ETag` before and after). Satisfies landing-background "Browser support" and preview-deployment "Single serialized preview" and "Prod isolation". Verify: results recorded on the PR. The stakeholder then checks the page visually and checks load time. If Lighthouse fails, the team fixes it and escalates to the stakeholder only after the check passes or after 3 failed fix attempts [M-4].
