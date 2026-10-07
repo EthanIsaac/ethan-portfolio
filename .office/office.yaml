@@ -24,4 +24,4 @@ human_merge_paths: []
 budgets: {story_usd: 15, story_agent_runs: 20, max_parallel_implementers: 2}
 
 # Status names on your Jira board for approving a story and approving its merge.
-jira: {approve_status: Approved, merge_approve_status: Merge approved}
+jira: {approve_status: Approved, merge_approve_status: Merge Approved}
