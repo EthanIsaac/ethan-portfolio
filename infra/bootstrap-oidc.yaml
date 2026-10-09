@@ -8,12 +8,16 @@ Parameters:
   GitHubOwner:
     Type: String
     Default: EthanIsaac
-    Description: GitHub user or organisation that owns the repository (never a wildcard).
+    Description: >-
+      GitHub user or organisation that owns the repository (never a wildcard). The default is
+      only an example: override it with the repository's real owner.
     AllowedPattern: '[A-Za-z0-9-]+'
   GitHubRepo:
     Type: String
     Default: ethan-portfolio
-    Description: GitHub repository name (never a wildcard).
+    Description: >-
+      GitHub repository name (never a wildcard). The default is only an example: override it
+      with the repository's real name.
     AllowedPattern: '[A-Za-z0-9._-]+'
   CreateOidcProvider:
     Type: String
@@ -79,7 +83,8 @@ Resources:
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubOwner}/${GitHubRepo}:pull_request'
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubOwner}/${GitHubRepo}:*'
       Policies:
         - PolicyName: dev-preview-deploy
           PolicyDocument:
