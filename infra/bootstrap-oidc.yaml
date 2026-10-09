@@ -1,0 +1,205 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  One-time bootstrap: GitHub Actions OIDC provider and a least-privilege role that this
+  repository's pull-request workflows assume to deploy the DEV preview stacks only.
+  Production (bucket ethantrevizo.com, distribution E130ND0ZBIO9C6) is explicitly denied.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: EthanIsaac
+    Description: GitHub user or organisation that owns the repository (never a wildcard).
+    AllowedPattern: '[A-Za-z0-9-]+'
+  GitHubRepo:
+    Type: String
+    Default: ethan-portfolio
+    Description: GitHub repository name (never a wildcard).
+    AllowedPattern: '[A-Za-z0-9._-]+'
+  CreateOidcProvider:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: >-
+      An account can hold only one OIDC provider for token.actions.githubusercontent.com.
+      Set to 'false' if it already exists; the role then trusts the existing provider.
+  HostedZoneId:
+    Type: String
+    AllowedPattern: 'Z[A-Z0-9]+'
+    Description: Route 53 hosted zone id for ethantrevizo.com (dev records only are written by the stacks).
+  DevCertStackName:
+    Type: String
+    Default: ethantrevizo-dev-certificate
+    Description: Dev certificate stack name (deployed in DevCertRegion). Tasks 3.x/4.1 reuse this default.
+  DevCertRegion:
+    Type: String
+    Default: us-east-1
+  DevSiteStackName:
+    Type: String
+    Default: ethantrevizo-dev-site
+    Description: Dev site stack name (deployed in DevSiteRegion). Tasks 3.x/4.1 reuse this default.
+  DevSiteRegion:
+    Type: String
+    Default: us-east-2
+  DevBucketPattern:
+    Type: String
+    Default: ethantrevizo-dev-*
+    Description: Dev bucket name pattern. Must not start with "ethantrevizo.com" (the prod bucket).
+    AllowedPattern: '[a-z0-9-]+\*?'
+
+Conditions:
+  CreateProvider: !Equals [!Ref CreateOidcProvider, 'true']
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+
+  PreviewDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${GitHubRepo}-preview-deploy'
+      Description: Assumed by pull-request workflows of this repository via GitHub OIDC; dev stacks only.
+      MaxSessionDuration: 3600
+      Tags:
+        # Referencing the provider here orders role creation after it when it is created
+        # by this stack (a DependsOn on a conditional resource is rejected by cfn-lint).
+        - Key: OidcProvider
+          Value: !If [CreateProvider, !Ref GitHubOidcProvider, existing]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubOwner}/${GitHubRepo}:pull_request'
+      Policies:
+        - PolicyName: dev-preview-deploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: DevStacks
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:GetTemplate
+                  - cloudformation:ListStackResources
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:cloudformation:${DevCertRegion}:${AWS::AccountId}:stack/${DevCertStackName}/*'
+                  - !Sub 'arn:${AWS::Partition}:cloudformation:${DevSiteRegion}:${AWS::AccountId}:stack/${DevSiteStackName}/*'
+              - Sid: ValidateTemplates
+                Effect: Allow
+                Action:
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:GetTemplateSummary
+                Resource: '*'  # these actions do not support resource-level scoping
+              - Sid: DevBucket
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:GetBucketPolicy
+                  - s3:PutBucketPolicy
+                  - s3:DeleteBucketPolicy
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutEncryptionConfiguration
+                  - s3:GetBucketTagging
+                  - s3:PutBucketTagging
+                  - s3:GetBucketOwnershipControls
+                  - s3:PutBucketOwnershipControls
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DevBucketPattern}'
+              - Sid: DevBucketObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${DevBucketPattern}/*'
+              - Sid: DevCertificate
+                Effect: Allow
+                # RequestCertificate cannot be scoped to a resource, so '*' is needed.
+                # Acceptable because the explicit Deny below protects production.
+                Action:
+                  - acm:RequestCertificate
+                  - acm:DescribeCertificate
+                  - acm:DeleteCertificate
+                  - acm:ListCertificates
+                  - acm:AddTagsToCertificate
+                  - acm:ListTagsForCertificate
+                Resource: '*'
+              - Sid: DevDnsRecords
+                Effect: Allow
+                Action:
+                  - route53:ChangeResourceRecordSets
+                  - route53:ListResourceRecordSets
+                Resource: !Sub 'arn:${AWS::Partition}:route53:::hostedzone/${HostedZoneId}'
+              - Sid: DnsChangeStatus
+                Effect: Allow
+                Action: route53:GetChange
+                Resource: !Sub 'arn:${AWS::Partition}:route53:::change/*'
+              - Sid: DnsZoneLookup
+                Effect: Allow
+                Action: route53:ListHostedZonesByName
+                Resource: '*'  # list action, cannot be resource-scoped
+              - Sid: DevDistribution
+                Effect: Allow
+                # Distribution and OAC creation cannot be resource-scoped before the
+                # resource exists, so '*' is needed. Acceptable because the explicit
+                # Deny below protects the production distribution.
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:GetDistribution
+                  - cloudfront:ListDistributions
+                  - cloudfront:TagResource
+                  - cloudfront:UntagResource
+                  - cloudfront:ListTagsForResource
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:GetOriginAccessControl
+                  - cloudfront:UpdateOriginAccessControl
+                  - cloudfront:DeleteOriginAccessControl
+                  - cloudfront:ListOriginAccessControls
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                  - cloudfront:GetCachePolicy
+                  - cloudfront:ListCachePolicies
+                Resource: '*'
+              - Sid: DenyProdBucket
+                Effect: Deny
+                Action: 's3:*'
+                Resource:
+                  - arn:aws:s3:::ethantrevizo.com
+                  - arn:aws:s3:::ethantrevizo.com/*
+              - Sid: DenyProdDistribution
+                Effect: Deny
+                Action: 'cloudfront:*'
+                Resource: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/E130ND0ZBIO9C6'
+
+Outputs:
+  RoleArn:
+    Description: Role ARN for aws-actions/configure-aws-credentials (role-to-assume).
+    Value: !GetAtt PreviewDeployRole.Arn
+  OidcProviderArn:
+    Description: ARN of the GitHub OIDC provider trusted by the role.
+    Value: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com'
