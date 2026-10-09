@@ -1,0 +1,18 @@
+# The project contract: what the office must know about this repository before agents
+# work on it. Merging this file on the default branch is your confirmation.
+version: 1
+
+commands:                 # how agents set up, test and build it (`none` if there's none)
+  setup: yarn install --frozen-lockfile
+  test: none
+  build: yarn build
+
+stop:                     # when a task stops for you
+  same_failure: 2         # after the same failure this many times
+  max_runs: 30            # or after this many agent runs (a loop guard)
+
+network:
+  deny: []                # agents have the network; list sites they must not reach
+
+# readiness gaps you accept: no-tests, build-fails, setup-fails, tests-fail
+accept: []
