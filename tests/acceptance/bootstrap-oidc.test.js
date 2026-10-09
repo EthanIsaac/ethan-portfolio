@@ -229,10 +229,34 @@ test('Bootstrap deployed: role is trusted only for this repository via the OIDC 
       /oidc-provider\/token\.actions\.githubusercontent\.com$/.test(resolve(tpl, fed) || '');
     assert.ok(fedOk, 'Federated principal must be the GitHub OIDC provider');
 
-    const cond = resolve(tpl, s.Condition || {});
-    const flat = {};
-    for (const [op, kv] of Object.entries(cond)) {
-      for (const [k, vals] of Object.entries(kv)) flat[k] = { op, vals: asList(vals) };
+    // GitHubOwner/GitHubRepo intentionally have no Default in the template (stakeholder/PM
+    // decision on EP-36): the test supplies the deploy-time values itself, as the stakeholder
+    // enters them per the deploy instructions.
+    const params = { GitHubOwner: 'EthanIsaac', GitHubRepo: 'ethan-portfolio' };
+    assert.equal(`${params.GitHubOwner}/${params.GitHubRepo}`, REPO_SLUG);
+    for (const name of Object.keys(params)) {
+      assert.ok((tpl.Parameters || {})[name], `template must declare parameter ${name}`);
+    }
+    const flatten = (cond) => {
+      const out = {};
+      for (const [op, kv] of Object.entries(cond)) {
+        for (const [k, vals] of Object.entries(kv)) out[k] = { op, vals: asList(vals) };
+      }
+      return out;
+    };
+    const flat = flatten(resolve(tpl, s.Condition || {}, params));
+
+    // The sub condition is built from the parameters (repo:${GitHubOwner}/${GitHubRepo}:...):
+    // other parameter values must yield a sub scoped to that other repository instead.
+    const other = flatten(
+      resolve(tpl, s.Condition || {}, { GitHubOwner: 'SomeOwner', GitHubRepo: 'some-repo' })
+    )['token.actions.githubusercontent.com:sub'];
+    assert.ok(other, 'condition on token.actions.githubusercontent.com:sub required');
+    for (const v of other.vals) {
+      assert.ok(
+        v.startsWith('repo:SomeOwner/some-repo:'),
+        `sub value "${v}" must be built from the GitHubOwner and GitHubRepo parameters`
+      );
     }
     const aud = flat['token.actions.githubusercontent.com:aud'];
     assert.ok(aud, 'condition on token.actions.githubusercontent.com:aud required');
