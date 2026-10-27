@@ -1,8 +1,6 @@
 // Scene catalogue and tuning knobs for the Solar System background.
 // Sizes and distances are compressed (artistic), but keep the real order and relative sizes.
 
-export const FPS_TARGETS = { mobile: 30, desktop: 60 };
-
 export interface Quality {
   maxDpr: number;
   maxPixels: number; // cap on canvas size in device pixels, applied on top of maxDpr

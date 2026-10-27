@@ -14,7 +14,7 @@ import {
   toSceneDistance,
   toSceneRadius,
 } from './config';
-import { bakeBody, bakeSky, RING_TYPE_INDEX } from './bake';
+import { Baker, RING_TYPE_INDEX } from './bake';
 import {
   atmosphereFragment,
   atmosphereVertex,
@@ -224,11 +224,13 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
 
   root.updateMatrixWorld(true);
 
-  // bake every surface with the Sun's direction in that body's own space
-  BODIES.forEach((def, i) => {
+  // Surfaces are baked later in small batches (see Scene); each job bakes one texture with
+  // the Sun's direction in that body's own space.
+  const baker = track(new Baker(gl, quality));
+  const bakeJobs: (() => void)[] = BODIES.map((def, i) => () => {
     const body = placed.get(def.name);
     const sunDir = body.mesh.worldToLocal(SUN_POSITION.clone()).normalize();
-    const target = track(bakeBody(gl, def, sunDir, quality, i * 1.618));
+    const target = track(baker.body(def, sunDir, i * 1.618));
     if (def.kind === 'star') {
       body.mesh.material = track(
         new THREE.ShaderMaterial({ vertexShader: sunVertex, fragmentShader: sunFragment, uniforms: { uMap: { value: target.texture } } })
@@ -256,16 +258,15 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
 
   // sky: baked Milky Way + faint stars, plus brighter glowing point stars; follows the camera
   const sky = new THREE.Group();
-  const skyTarget = track(bakeSky(gl, quality));
-  const skySphere = new THREE.Mesh(
-    track(new THREE.SphereGeometry(SKY_RADIUS, 64, 32)),
-    track(new THREE.MeshBasicMaterial({ map: skyTarget.texture, side: THREE.BackSide, depthWrite: false }))
-  );
+  const skySphere = new THREE.Mesh(track(new THREE.SphereGeometry(SKY_RADIUS, 64, 32)));
   skySphere.renderOrder = -2;
+  bakeJobs.push(() => {
+    const skyTarget = track(baker.sky());
+    skySphere.material = track(new THREE.MeshBasicMaterial({ map: skyTarget.texture, side: THREE.BackSide, depthWrite: false }));
+  });
   const stars = buildStars(quality.starCount);
   track(stars.geometry);
   track(stars.material as THREE.Material);
-  (stars.material as THREE.ShaderMaterial).uniforms.uPixelRatio.value = gl.getPixelRatio();
   stars.renderOrder = -1;
   sky.add(skySphere, stars);
   root.add(sky);
@@ -273,7 +274,9 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
   return {
     root,
     sky,
+    stars,
     placed,
+    bakeJobs,
     dispose: () => disposables.forEach((d) => d.dispose()),
   };
 }
@@ -375,20 +378,76 @@ function CameraRig({ path, sky }: { path: CameraPath; sky: THREE.Object3D }) {
   return null;
 }
 
+function canvasDpr(quality: Quality) {
+  const cssPixels = window.innerWidth * window.innerHeight;
+  return Math.max(1, Math.min(quality.maxDpr, window.devicePixelRatio, Math.sqrt(quality.maxPixels / cssPixels)));
+}
+
 function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+  const setDpr = useThree((s) => s.setDpr);
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
-  const system = useMemo(() => buildSystem(gl, quality), [gl, quality]);
-  const landscape = aspect > 1;
-  const path = useMemo(() => buildCameraPath(system, aspect), [system, landscape]); // eslint-disable-line react-hooks/exhaustive-deps
+  // bumped when the WebGL context is restored, since baked textures don't survive a loss
+  const [generation, setGeneration] = React.useState(0);
+  const system = useMemo(() => buildSystem(gl, quality), [gl, quality, generation]); // eslint-disable-line react-hooks/exhaustive-deps
+  const aspectBucket = Math.round(aspect * 10) / 10;
+  const path = useMemo(() => buildCameraPath(system, aspectBucket), [system, aspectBucket]);
 
   useEffect(() => {
-    // compile every shader now, so bodies coming into view later don't stall a frame
-    gl.compile(system.root, camera);
-    onReady?.();
-    return () => system.dispose();
+    // bake one surface per frame so the page stays responsive while the scene loads
+    let cancelled = false;
+    let frame = 0;
+    const jobs = [...system.bakeJobs];
+    const step = () => {
+      if (cancelled) return;
+      jobs.shift()?.();
+      if (jobs.length) {
+        frame = requestAnimationFrame(step);
+        return;
+      }
+      // compile the runtime shaders now, so bodies coming into view later don't stall a frame
+      gl.compile(system.root, camera);
+      invalidate();
+      onReady?.();
+    };
+    frame = requestAnimationFrame(step);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      system.dispose();
+    };
   }, [system]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onLost = (event: Event) => event.preventDefault(); // allow the browser to restore it
+    const onRestored = () => setGeneration((g) => g + 1);
+    canvas.addEventListener('webglcontextlost', onLost);
+    canvas.addEventListener('webglcontextrestored', onRestored);
+    return () => {
+      canvas.removeEventListener('webglcontextlost', onLost);
+      canvas.removeEventListener('webglcontextrestored', onRestored);
+    };
+  }, [gl]);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const onResize = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => setDpr(canvasDpr(quality)), 200);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [quality, setDpr]);
+
+  useFrame(({ viewport }) => {
+    (system.stars.material as THREE.ShaderMaterial).uniforms.uPixelRatio.value = viewport.dpr;
+  });
 
   return (
     <>
@@ -400,10 +459,7 @@ function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void })
 
 const SolarSystem = ({ onReady }: { onReady?: () => void }) => {
   const quality = useMemo(() => QUALITY[isMobileDevice() ? 'mobile' : 'desktop'], []);
-  const dpr = useMemo(() => {
-    const cssPixels = window.innerWidth * window.innerHeight;
-    return Math.max(1, Math.min(quality.maxDpr, window.devicePixelRatio, Math.sqrt(quality.maxPixels / cssPixels)));
-  }, [quality]);
+  const dpr = useMemo(() => canvasDpr(quality), [quality]);
 
   return (
     <Canvas

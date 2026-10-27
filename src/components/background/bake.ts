@@ -14,114 +14,137 @@ export const RING_TYPE_INDEX: Record<RingType, number> = { jupiter: 0, saturn: 1
 const color = (hex: string) => new THREE.Color(hex);
 const DEG = Math.PI / 180;
 
-function materialFor(body: BodyDef, sunDir: THREE.Vector3, quality: Quality, seed: number) {
-  const { surface } = body;
-  const uniforms: Record<string, THREE.IUniform> = {
-    uSunDir: { value: sunDir },
-    uSeed: { value: seed },
-    uAmbient: { value: 0.025 },
-  };
-  const defines: Record<string, string | number> = { OCTAVES: quality.octaves, RING_TYPE: 0 };
-  let fragmentShader: string;
+const BAKE_CAMERA = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-  switch (surface.type) {
-    case 'sun':
-      fragmentShader = sunBakeFragment;
-      break;
-    case 'earth':
-      fragmentShader = earthBakeFragment;
-      break;
-    case 'gas':
-      fragmentShader = gasBakeFragment;
-      Object.assign(uniforms, {
-        uC0: { value: color(surface.colors[0]) },
-        uC1: { value: color(surface.colors[1]) },
-        uC2: { value: color(surface.colors[2]) },
-        uC3: { value: color(surface.colors[3]) },
-        uBands: { value: surface.bands },
-        uTurb: { value: surface.turbulence },
-        uContrast: { value: surface.contrast },
-        uSpotAmount: { value: surface.spot ? 1 : 0 },
-        uSpot: {
-          value: surface.spot
-            ? new THREE.Vector4(surface.spot.lat * DEG, surface.spot.lon * DEG, surface.spot.size[0] * DEG, surface.spot.size[1] * DEG)
-            : new THREE.Vector4(0, 0, 1, 1),
-        },
-        uSpotColor: { value: color(surface.spot?.color ?? '#000000') },
-      });
-      if (body.ring === 'saturn') {
+const FRAGMENTS: Record<string, string> = {
+  sun: sunBakeFragment,
+  earth: earthBakeFragment,
+  gas: gasBakeFragment,
+  rocky: rockyBakeFragment,
+  sky: skyBakeFragment,
+};
+
+function surfaceUniforms(body: BodyDef): Record<string, unknown> {
+  const { surface } = body;
+  if (surface.type === 'gas') {
+    return {
+      uC0: color(surface.colors[0]),
+      uC1: color(surface.colors[1]),
+      uC2: color(surface.colors[2]),
+      uC3: color(surface.colors[3]),
+      uBands: surface.bands,
+      uTurb: surface.turbulence,
+      uContrast: surface.contrast,
+      uSpotAmount: surface.spot ? 1 : 0,
+      uSpot: surface.spot
+        ? new THREE.Vector4(surface.spot.lat * DEG, surface.spot.lon * DEG, surface.spot.size[0] * DEG, surface.spot.size[1] * DEG)
+        : new THREE.Vector4(0, 0, 1, 1),
+      uSpotColor: color(surface.spot?.color ?? '#000000'),
+    };
+  }
+  if (surface.type === 'rocky') {
+    return {
+      uBase: color(surface.base),
+      uDark: color(surface.dark),
+      uLight: color(surface.light),
+      uCapColor: color(surface.capColor ?? '#ffffff'),
+      uScale: surface.scale ?? 2,
+      uCraters: surface.craters ?? 0,
+      uMaria: surface.maria ?? 0,
+      uRidges: surface.ridges ?? 0,
+      uCap: surface.cap ?? 0,
+      uTwoTone: surface.twoTone ?? 0,
+      uSpots: surface.spots ?? 0,
+      uBump: surface.bump ?? 0.7,
+    };
+  }
+  return {};
+}
+
+/**
+ * Renders procedural surfaces into textures. Materials are cached per shader variant,
+ * so each heavy noise program is compiled once rather than once per body.
+ */
+export class Baker {
+  private scene = new THREE.Scene();
+  private quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2));
+  private materials = new Map<string, THREE.ShaderMaterial>();
+
+  constructor(private gl: THREE.WebGLRenderer, private quality: Quality) {
+    this.quad.frustumCulled = false;
+    this.scene.add(this.quad);
+  }
+
+  private material(type: string, ringShadow: boolean) {
+    const key = `${type}${ringShadow ? ':ring' : ''}`;
+    let material = this.materials.get(key);
+    if (!material) {
+      const defines: Record<string, string | number> = { OCTAVES: this.quality.octaves, RING_TYPE: 0 };
+      if (ringShadow) {
         defines.RING_SHADOW = '';
         defines.RING_TYPE = RING_TYPE_INDEX.saturn;
       }
-      break;
-    case 'rocky':
-      fragmentShader = rockyBakeFragment;
-      Object.assign(uniforms, {
-        uBase: { value: color(surface.base) },
-        uDark: { value: color(surface.dark) },
-        uLight: { value: color(surface.light) },
-        uCapColor: { value: color(surface.capColor ?? '#ffffff') },
-        uScale: { value: surface.scale ?? 2 },
-        uCraters: { value: surface.craters ?? 0 },
-        uMaria: { value: surface.maria ?? 0 },
-        uRidges: { value: surface.ridges ?? 0 },
-        uCap: { value: surface.cap ?? 0 },
-        uTwoTone: { value: surface.twoTone ?? 0 },
-        uSpots: { value: surface.spots ?? 0 },
-        uBump: { value: surface.bump ?? 0.7 },
+      material = new THREE.ShaderMaterial({
+        vertexShader: bakeVertex,
+        fragmentShader: FRAGMENTS[type],
+        uniforms: {
+          uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+          uSeed: { value: 0 },
+          uAmbient: { value: 0.025 },
+        },
+        defines,
+        depthTest: false,
       });
-      break;
+      this.materials.set(key, material);
+    }
+    return material;
   }
 
-  return new THREE.ShaderMaterial({ vertexShader: bakeVertex, fragmentShader, uniforms, defines, depthTest: false });
-}
+  private render(material: THREE.ShaderMaterial, values: Record<string, unknown>, width: number) {
+    for (const [name, value] of Object.entries(values)) {
+      if (material.uniforms[name]) material.uniforms[name].value = value;
+      else material.uniforms[name] = { value };
+    }
 
-function renderToTexture(gl: THREE.WebGLRenderer, material: THREE.ShaderMaterial, width: number) {
-  const target = new THREE.WebGLRenderTarget(width, width / 2, {
-    minFilter: THREE.LinearMipmapLinearFilter,
-    magFilter: THREE.LinearFilter,
-    wrapS: THREE.RepeatWrapping,
-    depthBuffer: false,
-  });
-  target.texture.generateMipmaps = true;
-  target.texture.anisotropy = Math.min(4, gl.capabilities.getMaxAnisotropy());
+    const target = new THREE.WebGLRenderTarget(width, width / 2, {
+      minFilter: THREE.LinearMipmapLinearFilter,
+      magFilter: THREE.LinearFilter,
+      wrapS: THREE.RepeatWrapping,
+      depthBuffer: false,
+    });
+    target.texture.generateMipmaps = true;
+    target.texture.anisotropy = Math.min(4, this.gl.capabilities.getMaxAnisotropy());
 
-  const scene = new THREE.Scene();
-  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-  quad.frustumCulled = false;
-  scene.add(quad);
+    this.quad.material = material;
+    const previous = this.gl.getRenderTarget();
+    this.gl.setRenderTarget(target);
+    this.gl.render(this.scene, BAKE_CAMERA);
+    this.gl.setRenderTarget(previous);
+    return target;
+  }
 
-  const previous = gl.getRenderTarget();
-  gl.setRenderTarget(target);
-  gl.render(scene, BAKE_CAMERA);
-  gl.setRenderTarget(previous);
+  /** Bakes a body's lit surface. `sunDir` is the direction to the Sun in the body's own space. */
+  body(body: BodyDef, sunDir: THREE.Vector3, seed: number) {
+    const width = Math.max(128, Math.round(body.bakeWidth * this.quality.bakeScale));
+    const material = this.material(body.surface.type, body.ring === 'saturn');
+    return this.render(material, { ...surfaceUniforms(body), uSunDir: sunDir, uSeed: seed }, width);
+  }
 
-  quad.geometry.dispose();
-  material.dispose();
-  return target;
-}
+  sky() {
+    return this.render(
+      this.material('sky', false),
+      {
+        uAmbient: 0,
+        uGalacticPole: new THREE.Vector3(0.35, 0.8, 0.48).normalize(),
+        uGalacticCenter: new THREE.Vector3(0.9, -0.15, -0.4).normalize(),
+      },
+      this.quality.skySize
+    );
+  }
 
-const BAKE_CAMERA = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-
-/** Bakes a body's lit surface. `sunDir` is the direction to the Sun in the body's own space. */
-export function bakeBody(gl: THREE.WebGLRenderer, body: BodyDef, sunDir: THREE.Vector3, quality: Quality, seed: number) {
-  const width = Math.max(128, Math.round(body.bakeWidth * quality.bakeScale));
-  return renderToTexture(gl, materialFor(body, sunDir, quality, seed), width);
-}
-
-export function bakeSky(gl: THREE.WebGLRenderer, quality: Quality) {
-  const material = new THREE.ShaderMaterial({
-    vertexShader: bakeVertex,
-    fragmentShader: skyBakeFragment,
-    uniforms: {
-      uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-      uSeed: { value: 0 },
-      uAmbient: { value: 0 },
-      uGalacticPole: { value: new THREE.Vector3(0.35, 0.8, 0.48).normalize() },
-      uGalacticCenter: { value: new THREE.Vector3(0.9, -0.15, -0.4).normalize() },
-    },
-    defines: { OCTAVES: quality.octaves, RING_TYPE: 0 },
-    depthTest: false,
-  });
-  return renderToTexture(gl, material, quality.skySize);
+  dispose() {
+    this.quad.geometry.dispose();
+    this.materials.forEach((m) => m.dispose());
+    this.materials.clear();
+  }
 }

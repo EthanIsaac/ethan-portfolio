@@ -203,7 +203,7 @@ void main() {
   float h = height(p);
   float detail = fbm(p * 3.0 + 2.0) * 0.5 + 0.5;
   vec3 col = mix(uBase, uLight, smoothstep(0.35, 0.9, detail));
-  col = mix(col, uDark, smoothstep(0.55, 0.15, detail) * 0.5);
+  col = mix(col, uDark, (1.0 - smoothstep(0.15, 0.55, detail)) * 0.5);
 
   float maria = mariaMask(p);
   col = mix(col, uDark, maria * 0.85);
@@ -273,8 +273,8 @@ void main() {
     float dLon = atan(sin(lon - uSpot.y), cos(lon - uSpot.y));
     vec2 d = vec2(dLon / uSpot.w, (lat - uSpot.x) / uSpot.z);
     float r = length(d);
-    float ring = smoothstep(1.0, 0.6, r);
-    float inner = smoothstep(0.75, 0.0, r + swirl * 0.15);
+    float ring = (1.0 - smoothstep(0.6, 1.0, r));
+    float inner = (1.0 - smoothstep(0.0, 0.75, r + swirl * 0.15));
     col = mix(col, mix(col, uSpotColor, 0.6), ring);
     col = mix(col, uSpotColor, inner);
   }
@@ -339,7 +339,7 @@ void main() {
   vec3 lit = col * (light + uAmbient);
 
   // city lights on the night side
-  float night = smoothstep(0.05, -0.15, dot(dir, uSunDir));
+  float night = (1.0 - smoothstep(-0.15, 0.05, dot(dir, uSunDir)));
   float cities = smoothstep(0.62, 0.8, fbm(dir * 14.0 + 4.0) * 0.5 + 0.5) * land * (1.0 - ice) * (1.0 - cloud);
   lit += vec3(1.0, 0.7, 0.35) * cities * night * 0.7;
 
@@ -356,8 +356,8 @@ void main() {
   float gran = smoothstep(0.0, 0.5, w.z - w.x); // bright cell centres, dark lanes
   float n = fbm(dir * 4.0) * 0.5 + 0.5;
   float heat = 0.78 + 0.1 * gran + 0.22 * (n - 0.5);
-  float spot = smoothstep(0.74, 0.78, fbm(dir * 5.0 + 40.0) * 0.5 + 0.5) * smoothstep(0.55, 0.2, abs(dir.y));
-  float penumbra = smoothstep(0.7, 0.74, fbm(dir * 5.0 + 40.0) * 0.5 + 0.5) * smoothstep(0.55, 0.2, abs(dir.y));
+  float spot = smoothstep(0.74, 0.78, fbm(dir * 5.0 + 40.0) * 0.5 + 0.5) * (1.0 - smoothstep(0.2, 0.55, abs(dir.y)));
+  float penumbra = smoothstep(0.7, 0.74, fbm(dir * 5.0 + 40.0) * 0.5 + 0.5) * (1.0 - smoothstep(0.2, 0.55, abs(dir.y)));
   heat -= penumbra * 0.18 + spot * 0.35;
   vec3 col = mix(vec3(0.95, 0.42, 0.06), vec3(1.0, 0.8, 0.42), smoothstep(0.35, 0.8, heat));
   col = mix(col, vec3(1.0, 0.96, 0.84), smoothstep(0.8, 0.95, heat));
@@ -427,13 +427,16 @@ void main() {
 `;
 
 export const atmosphereVertex = /* glsl */ `
+uniform vec3 uSunPos;
 varying vec3 vNormal;
-varying vec3 vWorld;
+varying vec3 vView;
+varying vec3 vLight;
 void main() {
-  vec4 world = modelMatrix * vec4(position, 1.0);
-  vWorld = world.xyz;
-  vNormal = normalize(mat3(modelMatrix) * normal);
-  gl_Position = projectionMatrix * viewMatrix * world;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vNormal = normalize(normalMatrix * normal); // correct under the oblate (non-uniform) scale
+  vView = -mv.xyz;
+  vLight = (viewMatrix * vec4(uSunPos, 1.0)).xyz - mv.xyz;
+  gl_Position = projectionMatrix * mv;
 }
 `;
 
@@ -445,11 +448,12 @@ uniform vec3 uSunPos;
 uniform float uIntensity;
 uniform float uShell; // shell radius / planet radius
 varying vec3 vNormal;
-varying vec3 vWorld;
+varying vec3 vView;
+varying vec3 vLight;
 void main() {
   vec3 N = normalize(vNormal);
-  vec3 V = normalize(cameraPosition - vWorld);
-  vec3 L = normalize(uSunPos - vWorld);
+  vec3 V = normalize(vView);
+  vec3 L = normalize(vLight);
   float lit = smoothstep(-0.3, 0.5, dot(N, L));
   float nv = dot(N, V);
 #ifdef BACK
