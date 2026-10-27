@@ -132,7 +132,10 @@ export class Baker {
 
   /** Smooth Milky Way glow from the sky panorama (see skyGlowFragment). */
   skyGlow(source: THREE.Texture) {
-    return this.render(this.material('glow', false), { uSource: source }, 1024);
+    const material = this.material('glow', false);
+    const target = this.render(material, { uSource: source }, 1024);
+    material.uniforms.uSource.value = null; // don't keep the source alive
+    return target;
   }
 
   dispose() {

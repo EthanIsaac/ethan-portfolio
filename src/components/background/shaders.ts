@@ -135,6 +135,9 @@ float ringDensity(float r) {
 }
 `;
 
+// Streamed photo textures are uploaded without flipY (they're ImageBitmaps), so flip v when sampling.
+const STREAMED_UV = 'vec2(uv.x, 1.0 - uv.y)';
+
 export const bakeVertex = /* glsl */ `
 varying vec2 vUv;
 void main() {
@@ -379,9 +382,11 @@ void main() {
   for (int j = -3; j <= 3; j++) {
     vec2 o = vec2(float(i), float(j));
     float w = exp(-dot(o, o) / 6.0);
+    // no fract() on x: the source repeats horizontally, and wrapping by hand would make the
+    // mip selection jump at the seam
     vec2 uv = vUv + o * vec2(0.0035 * stretch, 0.007);
-    uv = vec2(fract(uv.x), clamp(uv.y, 0.0, 1.0));
-    sum += texture2D(uSource, uv, 2.0).rgb * w;
+    uv.y = clamp(uv.y, 0.0, 1.0);
+    sum += texture2D(uSource, vec2(uv.x, 1.0 - uv.y), 2.0).rgb * w; // source is a streamed (unflipped) photo
     total += w;
   }
   gl_FragColor = vec4(sum / total, 1.0);
@@ -395,7 +400,7 @@ varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vView;
 void main() {
-  vUv = uv;
+  vUv = ${STREAMED_UV};
   vec4 world = modelMatrix * vec4(position, 1.0);
   vNormal = normalize(mat3(modelMatrix) * normal);
   vView = cameraPosition - world.xyz;
@@ -514,22 +519,27 @@ attribute vec3 aColor;
 uniform float uPixelRatio;
 varying vec3 vColor;
 varying float vGlow;
+varying float vPixels;
 void main() {
   vColor = aColor;
   vGlow = smoothstep(3.0, 7.0, aSize);
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = aSize * uPixelRatio;
+  // at least 3 device pixels, so even faint stars cover a full pixel footprint and don't shimmer
+  vPixels = max(aSize * uPixelRatio, 3.0);
+  gl_PointSize = vPixels;
 }
 `;
 
 export const starsFragment = /* glsl */ `
 varying vec3 vColor;
 varying float vGlow;
+varying float vPixels;
 void main() {
   vec2 c = gl_PointCoord - 0.5;
   float d = length(c) * 2.0;
-  float core = exp(-d * d * 14.0);
+  float px = length(c) * vPixels; // distance from the centre in device pixels
+  float core = exp(-px * px / 0.8); // ~1 px wide core whatever the sprite size
   float halo = exp(-d * 5.0) * 0.22 * vGlow; // only bright stars get a glow
   float a = (core + halo) * (1.0 - smoothstep(0.8, 1.0, d));
   gl_FragColor = vec4(vColor * a, 1.0);
@@ -566,7 +576,7 @@ varying vec3 vViewPos;
 varying vec3 vSunDir;
 varying vec3 vWorld;
 void main() {
-  vUv = uv;
+  vUv = ${STREAMED_UV};
   vec4 world = modelMatrix * vec4(position, 1.0);
   vWorld = world.xyz;
   vec4 mv = viewMatrix * world;

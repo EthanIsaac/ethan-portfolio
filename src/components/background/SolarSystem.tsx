@@ -172,21 +172,29 @@ function createTextureStreamer(gl: THREE.WebGLRenderer) {
   const urlFor = (item: StreamedTexture, layer: TextureLayer, tier: number) =>
     item.url ? item.url(layer, tier) : `/textures/${TIERS[Math.min(tier, layer.max)]}/${layer.name}.webp`;
 
-  const loadOne = (url: string) =>
-    new Promise<THREE.Texture>((resolve, reject) =>
-      loader.load(
-        url,
-        (texture) => {
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
-          // start decoding off the main thread now rather than at upload time
-          const image = texture.image as HTMLImageElement;
-          (image.decode ? image.decode() : Promise.resolve()).then(() => resolve(texture), () => resolve(texture));
-        },
-        undefined,
-        reject
-      )
-    );
+  // Photo textures are uploaded unflipped (flipY = false) and the shaders that sample them flip v
+  // themselves (see STREAMED_UV in shaders.ts). That lets us use ImageBitmaps, which decode off
+  // the main thread and stay decoded, so a 4K upload doesn't re-decode the image mid-frame.
+  // (createImageBitmap's own flip option isn't reliable across browsers.)
+  const prepare = (texture: THREE.Texture) => {
+    texture.flipY = false;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    texture.needsUpdate = true;
+    return texture;
+  };
+
+  const loadOne = async (url: string) => {
+    if (typeof createImageBitmap === 'function') {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${response.status} ${url}`);
+      const bitmap = await createImageBitmap(await response.blob());
+      const texture = prepare(new THREE.Texture(bitmap as unknown as HTMLImageElement));
+      texture.addEventListener('dispose', () => bitmap.close());
+      return texture;
+    }
+    return prepare(await loader.loadAsync(url));
+  };
 
   const loadTier = (item: StreamedTexture, tier: number) =>
     Promise.all(item.layers.map((layer) => loadOne(urlFor(item, layer, tier))));
@@ -519,6 +527,7 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     max: tierIndex(SKY_TEXTURE, quality),
     apply: ([map]) => {
       skyMaterial.uniforms.uMap.value = track(baker.skyGlow(map)).texture;
+      map.dispose(); // only needed for the bake; free the 2K source
       skySphere.visible = true;
     },
   });
@@ -601,7 +610,8 @@ const smootherstep = (x: number) => {
  * Page sections opt in with `data-planet="<body name>"`. Returns their bodies in page order and a
  * continuous stop value for the current scroll position: whole numbers while a section is on
  * screen, easing to the next one over CAMERA.transition viewport heights centred on the moment
- * the next section's top crosses the middle of the screen. Same scroll position, same view.
+ * the next section's top crosses the middle of the screen. Once the camera's easing settles,
+ * the same scroll position always gives the same view.
  */
 function readSections(placed: Map<string, unknown>) {
   const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-planet]')).filter((el) =>
@@ -634,11 +644,23 @@ function CameraRig({ poses, system }: { poses: Poses; system: System }) {
       invalidate();
     };
     onScroll();
+    // sections can change height without a scroll (Experience re-measures itself on resize,
+    // images and fonts load late), so re-read them when the page's layout changes too
+    let frame = 0;
+    const onLayout = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(onScroll);
+    };
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onLayout) : null;
+    observer?.observe(document.body);
+    document.querySelectorAll('[data-planet]').forEach((el) => observer?.observe(el));
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onLayout);
     return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onLayout);
     };
   }, [reducedMotion, invalidate, system]);
 
