@@ -8,6 +8,7 @@ import {
   BodyDef,
   CAMERA,
   EARTH_LAYERS,
+  MOTION,
   PhotoTexture,
   Quality,
   QUALITY,
@@ -63,7 +64,27 @@ interface PlacedBody {
   holder: THREE.Group;
   mesh: THREE.Mesh;
   extent: number; // radius of the body plus its rings and moons
+  axis: THREE.Vector3; // world-space pole; fixed, like a real spin axis
+  motion: Motion;
 }
+
+/** How a body moves: see MOTION in config. Rates are radians per second. */
+interface Motion {
+  tilt: THREE.Quaternion;
+  spin: number; // starting rotation around the pole
+  spinRate: number;
+  home: THREE.Vector3; // starting position, for bodies orbiting the Sun
+  orbitRate: number; // around the Sun, or around the parent for moons
+  parent?: PlacedBody;
+  orbitRadius?: number; // moons
+  orbitAngle?: number; // moons: starting angle in the parent's equatorial plane
+  ring?: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+}
+
+const TURN = Math.PI * 2;
+// compressed period in seconds for a real period of `real` days (or years): see MOTION
+const rate = (real: number | undefined, seconds: number) =>
+  real ? (Math.sign(real) * TURN) / (seconds * Math.sqrt(Math.abs(real))) : 0;
 
 function isMobileDevice() {
   return window.matchMedia('(pointer: coarse), (max-width: 768px)').matches;
@@ -310,6 +331,9 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     const holder = new THREE.Group();
     let tilt: THREE.Quaternion;
 
+    const spin = (def.spin ?? 0) * DEG;
+    const motion: Motion = { tilt: null, spin, spinRate: rate(def.day, MOTION.spin), home: null, orbitRate: 0 };
+
     if (def.parent) {
       const parent = placed.get(def.parent);
       tilt = tiltOf.get(def.parent);
@@ -319,18 +343,28 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
         .applyQuaternion(tilt);
       holder.position.copy(parent.holder.position).add(offset);
       parent.extent = Math.max(parent.extent, offset.length() + radius);
+      Object.assign(motion, {
+        parent,
+        orbitRadius: offset.length(),
+        orbitAngle: a,
+        // moons keep one face toward their planet, so they turn once per orbit
+        orbitRate: rate(def.period, MOTION.moon),
+      });
     } else {
       tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (def.tilt ?? 0) * DEG);
       if (def.au) {
         const d = toSceneDistance(def.au);
         const a = (def.angle ?? 0) * DEG;
         holder.position.set(d * Math.cos(a), def.height ?? 0, -d * Math.sin(a));
+        // Kepler: a year lasts au^1.5 Earth years
+        motion.orbitRate = rate(def.au ** 1.5, MOTION.year);
       }
     }
     tiltOf.set(def.name, tilt);
+    motion.tilt = tilt;
+    motion.home = holder.position.clone();
 
-    const spin = new THREE.Quaternion().setFromAxisAngle(UP, (def.spin ?? 0) * DEG);
-    holder.quaternion.copy(tilt).multiply(spin);
+    holder.quaternion.copy(tilt).multiply(new THREE.Quaternion().setFromAxisAngle(UP, spin));
     holder.scale.setScalar(radius);
 
     const geometry = radius > 0.25 || def.kind === 'star' ? sphereHigh : sphereLow;
@@ -366,8 +400,8 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
         )
       );
       ring.rotation.x = -Math.PI / 2;
-      ring.name = 'ring';
       holder.add(ring);
+      motion.ring = ring;
       extent = Math.max(extent, radius * cfg.outer);
     }
 
@@ -401,9 +435,40 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     }
 
     root.add(holder);
-    placed.set(def.name, { def, radius, holder, mesh, extent });
+    const axis = UP.clone().applyQuaternion(tilt);
+    placed.set(def.name, { def, radius, holder, mesh, extent, axis, motion });
   }
 
+  const turn = new THREE.Quaternion();
+  const toSun = new THREE.Vector3();
+  const ringToWorld = new THREE.Quaternion();
+  const ringTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  // where every body is `t` seconds in (parents come before their moons in BODIES)
+  const animate = (t: number) => {
+    placed.forEach(({ holder, motion }) => {
+      let spin = motion.spin + motion.spinRate * t;
+      if (motion.parent) {
+        const a = motion.orbitAngle + motion.orbitRate * t;
+        holder.position
+          .set(Math.cos(a), 0, -Math.sin(a))
+          .multiplyScalar(motion.orbitRadius)
+          .applyQuaternion(motion.tilt)
+          .add(motion.parent.holder.position);
+        spin = motion.spin + motion.orbitRate * t;
+      } else if (motion.orbitRate) {
+        holder.position.copy(motion.home).applyAxisAngle(UP, motion.orbitRate * t);
+      }
+      holder.quaternion.copy(motion.tilt).multiply(turn.setFromAxisAngle(UP, spin));
+
+      if (motion.ring) {
+        // the Sun's direction in the ring's own plane, for the planet's shadow on it
+        ringToWorld.copy(holder.quaternion).multiply(ringTilt).invert();
+        toSun.copy(SUN_POSITION).sub(holder.position).normalize().applyQuaternion(ringToWorld);
+        motion.ring.material.uniforms.uSunDirLocal.value.copy(toSun);
+      }
+    });
+  };
+  animate(0);
   root.updateMatrixWorld(true);
 
   const placeholder = track(new THREE.DataTexture(new Uint8Array([8, 8, 8, 255]), 1, 1));
@@ -413,16 +478,16 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
 
   BODIES.forEach((def, i) => {
     const body = placed.get(def.name);
-    const ring = body.holder.getObjectByName('ring') as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
-    if (ring) ring.material.uniforms.uSunDirLocal.value = ring.worldToLocal(SUN_POSITION.clone()).normalize();
-
-    // procedural surface baked with the Sun's direction in the body's own space
-    const bake = () => track(baker.body(def, body.mesh.worldToLocal(SUN_POSITION.clone()).normalize(), i * 1.618)).texture;
+    const bake = () => track(baker.body(def, i * 1.618)).texture;
     const layer = (name: string, max = TIERS.indexOf(def.texture?.max ?? '1k')) => ({ name, max });
 
     if (def.kind === 'star') {
       const material = track(
-        new THREE.ShaderMaterial({ vertexShader: sunVertex, fragmentShader: sunFragment, uniforms: { uMap: { value: placeholder } } })
+        new THREE.ShaderMaterial({
+          vertexShader: sunVertex,
+          fragmentShader: sunFragment,
+          uniforms: { uMap: { value: placeholder }, uFlipV: { value: 1 } },
+        })
       );
       body.mesh.material = material;
       streamer.add({
@@ -431,65 +496,85 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
         center: body.holder.position,
         radius: body.radius,
         apply: ([map]) => (material.uniforms.uMap.value = map),
-        fallback: () => (material.uniforms.uMap.value = bake()),
-      });
-      return;
-    }
-
-    if (def.texture) {
-      // real photo texture, lit at runtime
-      const earth = def.surface.type === 'earth';
-      const defines: Record<string, string> = {};
-      if (def.surface.type === 'gas') defines.GAS = '';
-      if (earth) defines.EARTH = '';
-      if (def.ring === 'saturn') defines.RING_SHADOW = '';
-      const material = track(
-        new THREE.ShaderMaterial({
-          vertexShader: planetVertex,
-          fragmentShader: planetFragment,
-          uniforms: {
-            uMap: { value: placeholder },
-            uTexel: { value: new THREE.Vector2(1, 1) },
-            uBump: { value: (def.texture.bump ?? 0) * body.radius * BUMP_SCALE },
-            uAmbient: { value: 0.02 },
-            uSunPos: { value: SUN_POSITION },
-            uNight: { value: placeholder },
-            uClouds: { value: placeholder },
-            uSpecular: { value: placeholder },
-            uRingTex: ringTexture,
-            uRingRange: { value: new THREE.Vector2(...SATURN_RING_RANGE) },
-            uRingCenter: { value: body.holder.position },
-            uRingNormal: { value: new THREE.Vector3(0, 1, 0).applyQuaternion(body.holder.quaternion) },
-            uRingRadius: { value: body.radius },
-          },
-          defines,
-          extensions: { derivatives: true } as THREE.ShaderMaterial['extensions'],
-        })
-      );
-      body.mesh.material = material;
-      streamer.add({
-        layers: earth
-          ? [layer(def.texture.name), ...EARTH_LAYERS.map(({ name, max }) => layer(name, TIERS.indexOf(max)))]
-          : [layer(def.texture.name)],
-        max: tierIndex(def.texture, quality),
-        center: body.holder.position,
-        radius: body.radius,
-        apply: ([map, night, clouds, specular]) => {
-          material.uniforms.uMap.value = map;
-          material.uniforms.uTexel.value.set(1 / map.image.width, 1 / map.image.height);
-          if (earth) {
-            material.uniforms.uNight.value = night;
-            material.uniforms.uClouds.value = clouds;
-            material.uniforms.uSpecular.value = specular;
-          }
+        fallback: () => {
+          material.uniforms.uMap.value = bake();
+          material.uniforms.uFlipV.value = 0;
         },
-        // the photo texture couldn't load (e.g. no WebP support): use the procedural surface
-        fallback: () => (body.mesh.material = track(new THREE.MeshBasicMaterial({ map: bake() }))),
       });
       return;
     }
 
-    bakeJobs.push(() => (body.mesh.material = track(new THREE.MeshBasicMaterial({ map: bake() }))));
+    // lit by the Sun at runtime, from a real photo texture or a baked procedural one
+    const earth = Boolean(def.texture) && def.surface.type === 'earth';
+    const defines: Record<string, string> = {};
+    if (def.surface.type === 'gas') defines.GAS = '';
+    if (earth) defines.EARTH = '';
+    if (def.ring === 'saturn') defines.RING_SHADOW = '';
+    const material = track(
+      new THREE.ShaderMaterial({
+        vertexShader: planetVertex,
+        fragmentShader: planetFragment,
+        uniforms: {
+          uMap: { value: placeholder },
+          uFlipV: { value: 1 },
+          uTexel: { value: new THREE.Vector2(1, 1) },
+          uBump: { value: (def.texture?.bump ?? 0) * body.radius * BUMP_SCALE },
+          uAmbient: { value: 0.02 },
+          uSunPos: { value: SUN_POSITION },
+          uNight: { value: placeholder },
+          uClouds: { value: placeholder },
+          uSpecular: { value: placeholder },
+          uRingTex: ringTexture,
+          uRingRange: { value: new THREE.Vector2(...SATURN_RING_RANGE) },
+          uRingCenter: { value: body.holder.position },
+          uRingNormal: { value: body.axis },
+          uRingRadius: { value: body.radius },
+        },
+        defines,
+        extensions: { derivatives: true } as THREE.ShaderMaterial['extensions'],
+      })
+    );
+    body.mesh.material = material;
+    const useMap = (map: THREE.Texture, width: number, height: number) => {
+      material.uniforms.uMap.value = map;
+      material.uniforms.uTexel.value.set(1 / width, 1 / height);
+    };
+    const useBake = () => {
+      const map = bake();
+      useMap(map, map.image.width, map.image.height);
+      material.uniforms.uFlipV.value = 0;
+      const { surface } = def;
+      material.uniforms.uBump.value = surface.type === 'rocky' ? (surface.bump ?? 0.7) * body.radius * BUMP_SCALE : 0;
+    };
+
+    if (!def.texture) {
+      bakeJobs.push(useBake);
+      return;
+    }
+    streamer.add({
+      layers: earth
+        ? [layer(def.texture.name), ...EARTH_LAYERS.map(({ name, max }) => layer(name, TIERS.indexOf(max)))]
+        : [layer(def.texture.name)],
+      max: tierIndex(def.texture, quality),
+      center: body.holder.position,
+      radius: body.radius,
+      apply: ([map, night, clouds, specular]) => {
+        useMap(map, map.image.width, map.image.height);
+        if (earth) {
+          material.uniforms.uNight.value = night;
+          material.uniforms.uClouds.value = clouds;
+          material.uniforms.uSpecular.value = specular;
+        }
+      },
+      // the photo texture couldn't load (e.g. no WebP support): use the procedural surface
+      fallback: () => {
+        material.defines = {};
+        if (def.surface.type === 'gas') material.defines.GAS = '';
+        if (def.ring === 'saturn') material.defines.RING_SHADOW = '';
+        material.needsUpdate = true;
+        useBake();
+      },
+    });
   });
 
   // Sun glow
@@ -545,6 +630,9 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     placed,
     bakeJobs,
     streamer,
+    animate,
+    /** How far a body has travelled around the Sun at time `t`, radians about the Sun's pole. */
+    orbitTurn: (name: string, t: number) => placed.get(name).motion.orbitRate * t,
     loadTextures: () => streamer.loadInitial(),
     dispose: () => {
       streamer.dispose();
@@ -560,7 +648,7 @@ interface Pose {
   quaternion: THREE.Quaternion;
 }
 
-/** Where the camera sits to frame each body: sunward and to one side, aimed so the body sits off-centre. */
+/** Where the camera sits to frame each body (at time 0): sunward and to one side, aimed so the body sits off-centre. */
 function buildPoses(system: System, aspect: number) {
   // half the view's width at unit distance, using the same horizontal field-of-view cap as the camera
   const halfWidth = Math.min(Math.tan((CAMERA.fov / 2) * DEG) * aspect, Math.tan((CAMERA.maxHorizontalFov / 2) * DEG));
@@ -569,8 +657,9 @@ function buildPoses(system: System, aspect: number) {
   const aim = new THREE.PerspectiveCamera();
   const poses = new Map<string, Pose>();
 
-  system.placed.forEach(({ holder, radius, extent, def }, name) => {
-    const pos = holder.position;
+  // framed at the starting positions; CameraRig turns each framing to follow its planet's orbit
+  system.placed.forEach(({ motion, radius, extent, def }, name) => {
+    const pos = motion.home;
     const radial = pos.lengthSq() > 0 ? new THREE.Vector3(pos.x, 0, pos.z).normalize() : new THREE.Vector3(1, 0, 0);
     const tangent = new THREE.Vector3().crossVectors(UP, radial);
     const dir = radial.multiplyScalar(-0.45).add(tangent.multiplyScalar(0.85)).addScaledVector(UP, 0.3).normalize();
@@ -608,11 +697,13 @@ const smootherstep = (x: number) => {
 
 /**
  * Page sections opt in with `data-planet="<body name> [<body name> ...]"`. Each section owns the
- * scroll from when its top crosses the middle of the screen until the next one's does, split
- * evenly between its bodies. Returns the bodies in page order and a continuous stop value for
- * the current scroll position: whole numbers while a body is framed, easing to the next one over
- * up to CAMERA.transition viewport heights centred on that body's share of the scroll beginning.
- * Once the camera's easing settles, the same scroll position always gives the same view.
+ * scroll from when its top crosses the middle of the screen (the first one from the top of the
+ * page, all of them within the page's scroll range) until the next one's does, split evenly
+ * between its bodies. Returns the bodies in page order and a continuous stop value for the
+ * current scroll position: whole numbers while a body is framed, easing to the next one over up
+ * to CAMERA.transition viewport heights centred on that body's share of the scroll beginning, and
+ * never more than two thirds of a share, so every body keeps some scroll to rest on. Once the
+ * camera's easing settles, the same scroll position always gives the same view.
  */
 function readSections(placed: Map<string, unknown>) {
   const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-planet]'));
@@ -633,17 +724,25 @@ function readSections(placed: Map<string, unknown>) {
     });
   });
 
+  if (!names.length) return { names: ['Sun'], value: 0 };
+  // nothing to scroll through: stay on the first body
+  if (maxScroll < 1) return { names, value: 0 };
+
   let value = 0;
   for (let i = 1; i < anchors.length; i++) {
-    // keep each transition clear of its neighbours and finished by the bottom of the page
-    const next = i + 1 < anchors.length ? anchors[i + 1] : maxScroll + (anchors[i] - anchors[i - 1]);
-    const half = Math.max(
-      1,
-      Math.min((height * CAMERA.transition) / 2, (anchors[i] - anchors[i - 1]) * 0.45, (next - anchors[i]) * 0.45, maxScroll - anchors[i])
-    );
-    value += smootherstep((window.scrollY - (anchors[i] - half)) / (2 * half));
+    // a body whose share has no length (its section is squeezed out of the scroll range) is skipped
+    if (anchors[i] - anchors[i - 1] < 2) {
+      value += window.scrollY >= anchors[i] ? 1 : 0;
+      continue;
+    }
+    // the last body must arrive, and rest a little, before the page ends: its flight may start early
+    const last = i === anchors.length - 1;
+    const centre = last ? Math.min(anchors[i], anchors[i - 1] + (maxScroll - anchors[i - 1]) * 0.6) : anchors[i];
+    const after = (last ? maxScroll : anchors[i + 1]) - centre;
+    const half = Math.max(1, Math.min((height * CAMERA.transition) / 2, (centre - anchors[i - 1]) / 3, after / 3));
+    value += smootherstep((window.scrollY - (centre - half)) / (2 * half));
   }
-  return { names: names.length ? names : ['Sun'], value };
+  return { names, value };
 }
 
 function CameraRig({ poses, system }: { poses: Poses; system: System }) {
@@ -685,20 +784,51 @@ function CameraRig({ poses, system }: { poses: Poses; system: System }) {
 
   useEffect(() => invalidate(), [poses, invalidate]);
 
+  // Bodies keep turning while the page is idle; 30 fps is plenty for motion this slow. While
+  // the camera is flying, useFrame below asks for every frame itself.
+  const start = useRef(performance.now());
+  const flying = useRef(false);
+  useEffect(() => {
+    if (reducedMotion) return;
+    const timer = setInterval(() => !flying.current && invalidate(), 1000 / 30);
+    return () => clearInterval(timer);
+  }, [reducedMotion, invalidate]);
+
+  const turn = useMemo(() => new THREE.Quaternion(), []);
+  const poseAt = useMemo(() => {
+    const from = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
+    const to = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
+    return { from, to };
+  }, []);
+
   useFrame(({ camera }, delta) => {
+    // with reduced motion the system holds still
+    const time = reducedMotion ? 0 : (performance.now() - start.current) / 1000;
+    system.animate(time);
+
     // ease toward the scroll position so a fast fling still glides
     const current = value.current ?? target.current;
     const diff = target.current - current;
     const moving = Math.abs(diff) > 1e-4;
     const next = moving ? current + diff * (1 - Math.exp(-CAMERA.damping * Math.min(delta, 1 / 30))) : target.current;
     value.current = next;
+    flying.current = moving;
     if (moving) invalidate();
 
     const stops = names.current;
     const i = THREE.MathUtils.clamp(Math.floor(next), 0, Math.max(stops.length - 2, 0));
     const t = THREE.MathUtils.clamp(next - i, 0, 1);
-    const from = poses.get(stops[i]);
-    const to = poses.get(stops[Math.min(i + 1, stops.length - 1)]);
+    // each framing travels with its planet around the Sun
+    const follow = (name: string, out: Pose) => {
+      const pose = poses.get(name);
+      const angle = system.orbitTurn(name, time);
+      turn.setFromAxisAngle(UP, angle);
+      out.position.copy(pose.position).applyAxisAngle(UP, angle);
+      out.quaternion.copy(turn).multiply(pose.quaternion);
+      return out;
+    };
+    const from = follow(stops[i], poseAt.from);
+    const to = follow(stops[Math.min(i + 1, stops.length - 1)], poseAt.to);
 
     // one smooth arc between the two framings, rising above the planets' plane so it never clips one
     camera.position.lerpVectors(from.position, to.position, t);

@@ -136,7 +136,8 @@ float ringDensity(float r) {
 `;
 
 // Streamed photo textures are uploaded without flipY (they're ImageBitmaps), so flip v when sampling.
-const STREAMED_UV = 'vec2(uv.x, 1.0 - uv.y)';
+// Streamed photo textures are uploaded unflipped (see loadOne), baked ones aren't: uFlipV is 1 or 0.
+const SURFACE_UV = 'vec2(uv.x, mix(uv.y, 1.0 - uv.y, uFlipV))';
 
 export const bakeVertex = /* glsl */ `
 varying vec2 vUv;
@@ -153,17 +154,11 @@ vec3 sphereDir(vec2 uv) {
   float theta = (1.0 - uv.y) * 3.14159265359;
   return vec3(-cos(phi) * sin(theta), cos(theta), sin(phi) * sin(theta));
 }
-vec3 tangentX(vec3 n) { return normalize(cross(abs(n.y) > 0.99 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0), n)); }
-float lambert(vec3 n, vec3 geo, vec3 L) {
-  float shadow = smoothstep(-0.08, 0.12, dot(geo, L));
-  return max(dot(n, L), 0.0) * shadow;
-}
 `;
 
+// Bakes are unlit surface colour: bodies are lit at runtime (planetFragment) so they can turn.
 const BAKE_HEADER = /* glsl */ `
-uniform vec3 uSunDir;   // object space
 uniform float uSeed;
-uniform float uAmbient;
 varying vec2 vUv;
 ${NOISE}
 ${SPHERE_DIR}
@@ -172,7 +167,7 @@ ${SPHERE_DIR}
 export const rockyBakeFragment = /* glsl */ `
 ${BAKE_HEADER}
 uniform vec3 uBase, uDark, uLight, uCapColor;
-uniform float uScale, uCraters, uMaria, uRidges, uCap, uTwoTone, uSpots, uBump;
+uniform float uScale, uCraters, uMaria, uRidges, uCap, uTwoTone, uSpots;
 
 float crater(vec3 p, float density) {
   vec3 w = worley(p);
@@ -217,7 +212,6 @@ void main() {
     float lines = max(smoothstep(0.93, 0.995, 1.0 - abs(snoise(p * 1.3 + 7.0))),
                       smoothstep(0.95, 0.997, 1.0 - abs(snoise(p * 2.6 - 3.0))));
     col = mix(col, uDark, lines * uRidges * 0.8);
-    h += lines * uRidges * 0.05;
   }
   if (uSpots > 0.0) {
     float s = fbm(p * 1.8 + 21.0);
@@ -233,16 +227,9 @@ void main() {
     col = mix(col, uCapColor, cap);
   }
 
-  // bump lighting from finite differences of the height field
-  float e = 0.004 * uScale;
-  vec3 t1 = tangentX(dir);
-  vec3 t2 = cross(dir, t1);
-  float hx = height(p + t1 * e) - h;
-  float hy = height(p + t2 * e) - h;
-  vec3 n = normalize(dir - (t1 * hx + t2 * hy) / e * 0.012 * uBump);
-
-  float light = lambert(n, dir, uSunDir);
-  gl_FragColor = vec4(col * (light + uAmbient), 1.0);
+  // craters and ridges read as relief: the runtime shader derives bumps from this brightness
+  col *= 0.8 + 0.4 * clamp(h + 0.5, 0.0, 1.0);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -251,7 +238,6 @@ ${BAKE_HEADER}
 uniform vec3 uC0, uC1, uC2, uC3, uSpotColor;
 uniform float uBands, uTurb, uContrast, uSpotAmount;
 uniform vec4 uSpot; // lat, lon, half-size lat, half-size lon (radians)
-${RING_DENSITY}
 
 void main() {
   vec3 dir = sphereDir(vUv);
@@ -285,20 +271,7 @@ void main() {
   // darker, hazier toward the poles
   col *= mix(1.0, 0.72, smoothstep(0.55, 1.0, abs(dir.y)));
 
-  float light = lambert(dir, dir, uSunDir);
-  light = pow(light, 0.85);
-
-#ifdef RING_SHADOW
-  if (uSunDir.y != 0.0) {
-    float t = -dir.y / uSunDir.y;
-    if (t > 0.0) {
-      vec3 hit = dir + uSunDir * t;
-      light *= 1.0 - clamp(ringDensity(length(hit.xz)), 0.0, 1.0) * 0.8;
-    }
-  }
-#endif
-
-  gl_FragColor = vec4(col * (light + uAmbient), 1.0);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -338,15 +311,7 @@ void main() {
   cloud *= 0.6 + 0.4 * smoothstep(0.0, 0.3, abs(abs(dir.y) - 0.15)); // thinner near the subtropics
   col = mix(col, vec3(0.95), cloud);
 
-  float light = lambert(dir, dir, uSunDir);
-  vec3 lit = col * (light + uAmbient);
-
-  // city lights on the night side
-  float night = (1.0 - smoothstep(-0.15, 0.05, dot(dir, uSunDir)));
-  float cities = smoothstep(0.62, 0.8, fbm(dir * 14.0 + 4.0) * 0.5 + 0.5) * land * (1.0 - ice) * (1.0 - cloud);
-  lit += vec3(1.0, 0.7, 0.35) * cities * night * 0.7;
-
-  gl_FragColor = vec4(lit, 1.0);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -396,11 +361,12 @@ void main() {
 // --- runtime shaders (cheap) ---
 
 export const sunVertex = /* glsl */ `
+uniform float uFlipV;
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vView;
 void main() {
-  vUv = ${STREAMED_UV};
+  vUv = ${SURFACE_UV};
   vec4 world = modelMatrix * vec4(position, 1.0);
   vNormal = normalize(mat3(modelMatrix) * normal);
   vView = cameraPosition - world.xyz;
@@ -566,17 +532,18 @@ void main() {
 }
 `;
 
-// Photo-textured bodies, lit by the Sun at runtime. Normals and lighting are in view space,
+// Every body but the Sun (photo or baked surface), lit by the Sun at runtime. Normals and lighting are in view space,
 // which stays correct under the oblate scale of Jupiter and Saturn.
 export const planetVertex = /* glsl */ `
 uniform vec3 uSunPos;
+uniform float uFlipV;
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vViewPos;
 varying vec3 vSunDir;
 varying vec3 vWorld;
 void main() {
-  vUv = ${STREAMED_UV};
+  vUv = ${SURFACE_UV};
   vec4 world = modelMatrix * vec4(position, 1.0);
   vWorld = world.xyz;
   vec4 mv = viewMatrix * world;
