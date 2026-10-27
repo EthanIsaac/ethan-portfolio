@@ -120,7 +120,7 @@ export interface BodyDef {
   orbitAngle?: number; // degrees in the parent's equatorial plane
   tilt?: number; // axial tilt, degrees
   spin?: number; // rotation around the pole, degrees (picks which side faces us)
-  day?: number; // rotation period, days (negative turns backwards); moons always face their planet
+  day?: number; // rotation period, days; moons always face their planet (backwards spinners like Venus are tilted past 90°)
   period?: number; // moon orbit period, days (negative orbits backwards)
   shape?: [number, number, number]; // ellipsoid scale (x, y=pole, z)
   ring?: RingType;
@@ -139,7 +139,7 @@ export const BODIES: BodyDef[] = [
     surface: { type: 'rocky', base: '#8f8a84', dark: '#5f5a55', light: '#b3ada6', scale: 2.2, craters: 1, bump: 1.2 },
   },
   {
-    name: 'Venus', kind: 'planet', radiusKm: 6052, day: -243, au: 0.72, angle: -7, tilt: 177, bakeWidth: 512, texture: { name: 'venus', max: '4k' },
+    name: 'Venus', kind: 'planet', radiusKm: 6052, day: 243, au: 0.72, angle: -7, tilt: 177, bakeWidth: 512, texture: { name: 'venus', max: '4k' },
     atmosphere: { color: '#f7dfa8', intensity: 1.1 },
     surface: { type: 'gas', colors: ['#e9cf98', '#d9b06a', '#f3e2b8', '#c99a55'], bands: 5, turbulence: 1.6, contrast: 0.35 },
   },
@@ -172,7 +172,7 @@ export const BODIES: BodyDef[] = [
     surface: { type: 'gas', colors: ['#e6d3a3', '#c9a86a', '#f1e4bd', '#b8955c'], bands: 16, turbulence: 1.2, contrast: 0.55 },
   },
   {
-    name: 'Uranus', kind: 'planet', radiusKm: 25362, day: -0.72, au: 19.2, angle: -4, tilt: 97.8, ring: 'uranus', bakeWidth: 512, texture: { name: 'uranus', max: '2k' },
+    name: 'Uranus', kind: 'planet', radiusKm: 25362, day: 0.72, au: 19.2, angle: -4, tilt: 97.8, ring: 'uranus', bakeWidth: 512, texture: { name: 'uranus', max: '2k' },
     atmosphere: { color: '#b8f0f5', intensity: 1 },
     surface: { type: 'gas', colors: ['#a9dfe5', '#97d1da', '#c3eaee', '#8cc6d0'], bands: 8, turbulence: 0.6, contrast: 0.25 },
   },
@@ -191,7 +191,7 @@ export const BODIES: BodyDef[] = [
     surface: { type: 'rocky', base: '#7a766f', dark: '#58544e', light: '#a29d95', scale: 2.4, craters: 0.9 },
   },
   {
-    name: 'Pluto', kind: 'dwarf', radiusKm: 1188, day: -6.39, au: 39.5, angle: -3, height: 3, tilt: 122.5, spin: 300, bakeWidth: 512,
+    name: 'Pluto', kind: 'dwarf', radiusKm: 1188, day: 6.39, au: 39.5, angle: -3, height: 3, tilt: 122.5, spin: 300, bakeWidth: 512,
     surface: {
       type: 'rocky', base: '#c4a07e', dark: '#5e3b2c', light: '#ede2d0', scale: 1.4,
       craters: 0.25, maria: 0.7, spots: 0.8,

@@ -94,8 +94,7 @@ vec3 worley(vec3 p) {
 }
 `;
 
-// Ring density as a function of radius in planet radii. Shared by the ring mesh and
-// by Saturn's bake (for the ring shadow on the planet).
+// Ring density as a function of radius in planet radii, for the ring mesh.
 const RING_DENSITY = /* glsl */ `
 float band(float r, float a, float b, float soft) {
   return smoothstep(a - soft, a + soft, r) * (1.0 - smoothstep(b - soft, b + soft, r));
@@ -135,7 +134,6 @@ float ringDensity(float r) {
 }
 `;
 
-// Streamed photo textures are uploaded without flipY (they're ImageBitmaps), so flip v when sampling.
 // Streamed photo textures are uploaded unflipped (see loadOne), baked ones aren't: uFlipV is 1 or 0.
 const SURFACE_UV = 'vec2(uv.x, mix(uv.y, 1.0 - uv.y, uFlipV))';
 

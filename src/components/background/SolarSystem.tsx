@@ -347,9 +347,12 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
         parent,
         orbitRadius: offset.length(),
         orbitAngle: a,
-        // moons keep one face toward their planet, so they turn once per orbit
+        // moons keep their near side (the texture's longitude 0) toward their planet, turning once per orbit
+        spin: a + Math.PI + spin,
         orbitRate: rate(def.period, MOTION.moon),
       });
+      // a planet locked to its moon (Pluto and Charon) turns with it
+      if (parent.def.day && Math.abs(parent.def.day - Math.abs(def.period ?? 0)) < 0.01) parent.motion.spinRate = motion.orbitRate;
     } else {
       tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (def.tilt ?? 0) * DEG);
       if (def.au) {
@@ -705,7 +708,7 @@ const smootherstep = (x: number) => {
  * never more than two thirds of a share, so every body keeps some scroll to rest on. Once the
  * camera's easing settles, the same scroll position always gives the same view.
  */
-function readSections(placed: Map<string, unknown>) {
+function readSections(placed: Map<string, PlacedBody>) {
   const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-planet]'));
   const height = window.innerHeight;
   const maxScroll = Math.max(0, document.documentElement.scrollHeight - height);
@@ -716,7 +719,8 @@ function readSections(placed: Map<string, unknown>) {
   const names: string[] = [];
   const anchors: number[] = [];
   sections.forEach((el, i) => {
-    const bodies = el.dataset.planet.split(/\s+/).filter((name) => placed.has(name));
+    // planets, dwarfs and the Sun only: framings follow orbits around the Sun, not around a planet
+    const bodies = el.dataset.planet.split(/\s+/).filter((name) => placed.has(name) && !placed.get(name).def.parent);
     const end = i + 1 < sections.length ? starts[i + 1] : maxScroll;
     bodies.forEach((name, j) => {
       names.push(name);
@@ -728,15 +732,19 @@ function readSections(placed: Map<string, unknown>) {
   // nothing to scroll through: stay on the first body
   if (maxScroll < 1) return { names, value: 0 };
 
+  // a body whose share has no length (its section is squeezed out of the scroll range) is skipped
+  const squeezed = (i: number) => anchors[i] - anchors[i - 1] < 2;
+  let final = anchors.length - 1;
+  while (final > 0 && squeezed(final)) final--;
+
   let value = 0;
   for (let i = 1; i < anchors.length; i++) {
-    // a body whose share has no length (its section is squeezed out of the scroll range) is skipped
-    if (anchors[i] - anchors[i - 1] < 2) {
-      value += window.scrollY >= anchors[i] ? 1 : 0;
+    if (squeezed(i)) {
+      value += window.scrollY >= anchors[i] - 1 ? 1 : 0;
       continue;
     }
-    // the last body must arrive, and rest a little, before the page ends: its flight may start early
-    const last = i === anchors.length - 1;
+    // the last body with a share must arrive, and rest a little, before the page ends: its flight may start early
+    const last = i === final;
     const centre = last ? Math.min(anchors[i], anchors[i - 1] + (maxScroll - anchors[i - 1]) * 0.6) : anchors[i];
     const after = (last ? maxScroll : anchors[i + 1]) - centre;
     const half = Math.max(1, Math.min((height * CAMERA.transition) / 2, (centre - anchors[i - 1]) / 3, after / 3));
@@ -790,7 +798,10 @@ function CameraRig({ poses, system }: { poses: Poses; system: System }) {
   const flying = useRef(false);
   useEffect(() => {
     if (reducedMotion) return;
-    const timer = setInterval(() => !flying.current && invalidate(), 1000 / 30);
+    // time picks up from the frozen start rather than jumping ahead
+    start.current = performance.now();
+    // hidden tabs skip it, or the requested frames would pile up and burst on return
+    const timer = setInterval(() => !flying.current && document.visibilityState === 'visible' && invalidate(), 1000 / 30);
     return () => clearInterval(timer);
   }, [reducedMotion, invalidate]);
 
