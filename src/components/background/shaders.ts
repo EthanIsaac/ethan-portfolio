@@ -94,8 +94,7 @@ vec3 worley(vec3 p) {
 }
 `;
 
-// Ring density as a function of radius in planet radii. Shared by the ring mesh and
-// by Saturn's bake (for the ring shadow on the planet).
+// Ring density as a function of radius in planet radii, for the ring mesh.
 const RING_DENSITY = /* glsl */ `
 float band(float r, float a, float b, float soft) {
   return smoothstep(a - soft, a + soft, r) * (1.0 - smoothstep(b - soft, b + soft, r));
@@ -135,6 +134,9 @@ float ringDensity(float r) {
 }
 `;
 
+// Streamed photo textures are uploaded unflipped (see loadOne), baked ones aren't: uFlipV is 1 or 0.
+const SURFACE_UV = 'vec2(uv.x, mix(uv.y, 1.0 - uv.y, uFlipV))';
+
 export const bakeVertex = /* glsl */ `
 varying vec2 vUv;
 void main() {
@@ -150,17 +152,11 @@ vec3 sphereDir(vec2 uv) {
   float theta = (1.0 - uv.y) * 3.14159265359;
   return vec3(-cos(phi) * sin(theta), cos(theta), sin(phi) * sin(theta));
 }
-vec3 tangentX(vec3 n) { return normalize(cross(abs(n.y) > 0.99 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0), n)); }
-float lambert(vec3 n, vec3 geo, vec3 L) {
-  float shadow = smoothstep(-0.08, 0.12, dot(geo, L));
-  return max(dot(n, L), 0.0) * shadow;
-}
 `;
 
+// Bakes are unlit surface colour: bodies are lit at runtime (planetFragment) so they can turn.
 const BAKE_HEADER = /* glsl */ `
-uniform vec3 uSunDir;   // object space
 uniform float uSeed;
-uniform float uAmbient;
 varying vec2 vUv;
 ${NOISE}
 ${SPHERE_DIR}
@@ -169,7 +165,7 @@ ${SPHERE_DIR}
 export const rockyBakeFragment = /* glsl */ `
 ${BAKE_HEADER}
 uniform vec3 uBase, uDark, uLight, uCapColor;
-uniform float uScale, uCraters, uMaria, uRidges, uCap, uTwoTone, uSpots, uBump;
+uniform float uScale, uCraters, uMaria, uRidges, uCap, uTwoTone, uSpots;
 
 float crater(vec3 p, float density) {
   vec3 w = worley(p);
@@ -214,7 +210,6 @@ void main() {
     float lines = max(smoothstep(0.93, 0.995, 1.0 - abs(snoise(p * 1.3 + 7.0))),
                       smoothstep(0.95, 0.997, 1.0 - abs(snoise(p * 2.6 - 3.0))));
     col = mix(col, uDark, lines * uRidges * 0.8);
-    h += lines * uRidges * 0.05;
   }
   if (uSpots > 0.0) {
     float s = fbm(p * 1.8 + 21.0);
@@ -230,16 +225,9 @@ void main() {
     col = mix(col, uCapColor, cap);
   }
 
-  // bump lighting from finite differences of the height field
-  float e = 0.004 * uScale;
-  vec3 t1 = tangentX(dir);
-  vec3 t2 = cross(dir, t1);
-  float hx = height(p + t1 * e) - h;
-  float hy = height(p + t2 * e) - h;
-  vec3 n = normalize(dir - (t1 * hx + t2 * hy) / e * 0.012 * uBump);
-
-  float light = lambert(n, dir, uSunDir);
-  gl_FragColor = vec4(col * (light + uAmbient), 1.0);
+  // craters and ridges read as relief: the runtime shader derives bumps from this brightness
+  col *= 0.8 + 0.4 * clamp(h + 0.5, 0.0, 1.0);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -248,7 +236,6 @@ ${BAKE_HEADER}
 uniform vec3 uC0, uC1, uC2, uC3, uSpotColor;
 uniform float uBands, uTurb, uContrast, uSpotAmount;
 uniform vec4 uSpot; // lat, lon, half-size lat, half-size lon (radians)
-${RING_DENSITY}
 
 void main() {
   vec3 dir = sphereDir(vUv);
@@ -282,20 +269,7 @@ void main() {
   // darker, hazier toward the poles
   col *= mix(1.0, 0.72, smoothstep(0.55, 1.0, abs(dir.y)));
 
-  float light = lambert(dir, dir, uSunDir);
-  light = pow(light, 0.85);
-
-#ifdef RING_SHADOW
-  if (uSunDir.y != 0.0) {
-    float t = -dir.y / uSunDir.y;
-    if (t > 0.0) {
-      vec3 hit = dir + uSunDir * t;
-      light *= 1.0 - clamp(ringDensity(length(hit.xz)), 0.0, 1.0) * 0.8;
-    }
-  }
-#endif
-
-  gl_FragColor = vec4(col * (light + uAmbient), 1.0);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -335,15 +309,7 @@ void main() {
   cloud *= 0.6 + 0.4 * smoothstep(0.0, 0.3, abs(abs(dir.y) - 0.15)); // thinner near the subtropics
   col = mix(col, vec3(0.95), cloud);
 
-  float light = lambert(dir, dir, uSunDir);
-  vec3 lit = col * (light + uAmbient);
-
-  // city lights on the night side
-  float night = (1.0 - smoothstep(-0.15, 0.05, dot(dir, uSunDir)));
-  float cities = smoothstep(0.62, 0.8, fbm(dir * 14.0 + 4.0) * 0.5 + 0.5) * land * (1.0 - ice) * (1.0 - cloud);
-  lit += vec3(1.0, 0.7, 0.35) * cities * night * 0.7;
-
-  gl_FragColor = vec4(lit, 1.0);
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -365,47 +331,40 @@ void main() {
 }
 `;
 
-export const skyBakeFragment = /* glsl */ `
-${BAKE_HEADER}
-uniform vec3 uGalacticPole;
-uniform vec3 uGalacticCenter;
-
-float starHash(vec3 c) { return fract(sin(dot(c, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
-
+// Turns the sky panorama into a smooth Milky Way glow: a wide Gaussian over a coarse mip level
+// averages away its baked-in stars and compression blocks. Runs once.
+export const skyGlowFragment = /* glsl */ `
+uniform sampler2D uSource;
+varying vec2 vUv;
 void main() {
-  vec3 dir = sphereDir(vUv);
-  float b = dot(dir, uGalacticPole);
-  float core = pow(max(dot(dir, uGalacticCenter), 0.0), 3.0);
-
-  float clouds = fbm(dir * 4.0) * 0.5 + 0.5;
-  float band = exp(-b * b * 18.0) * (0.35 + 0.65 * clouds) * (0.5 + core * 1.2);
-  float dust = smoothstep(0.45, 0.75, ridged(dir * 5.0 + 3.0)) * exp(-b * b * 120.0);
-  band *= 1.0 - dust * 0.75;
-
-  vec3 col = mix(vec3(0.55, 0.62, 0.85), vec3(1.0, 0.86, 0.7), core) * band * 0.075;
-  col += vec3(0.05, 0.03, 0.08) * smoothstep(0.55, 0.9, fbm(dir * 2.0 + 17.0) * 0.5 + 0.5) * 0.25; // faint nebulosity
-
-  // dense field of faint stars, more of them inside the band
-  vec3 c = floor(dir * 420.0);
-  float h = starHash(c);
-  float threshold = 0.994 - exp(-b * b * 18.0) * 0.006;
-  if (h > threshold) {
-    float bright = pow((h - threshold) / (1.0 - threshold), 2.0);
-    col += vec3(0.85, 0.88, 1.0) * (0.15 + bright * 0.6);
+  float lat = (vUv.y - 0.5) * 3.14159265;
+  float stretch = 1.0 / max(cos(lat), 0.2); // equirect pixels get narrower toward the poles
+  vec3 sum = vec3(0.0);
+  float total = 0.0;
+  for (int i = -3; i <= 3; i++)
+  for (int j = -3; j <= 3; j++) {
+    vec2 o = vec2(float(i), float(j));
+    float w = exp(-dot(o, o) / 6.0);
+    // no fract() on x: the source repeats horizontally, and wrapping by hand would make the
+    // mip selection jump at the seam
+    vec2 uv = vUv + o * vec2(0.0035 * stretch, 0.007);
+    uv.y = clamp(uv.y, 0.0, 1.0);
+    sum += texture2D(uSource, vec2(uv.x, 1.0 - uv.y), 2.0).rgb * w; // source is a streamed (unflipped) photo
+    total += w;
   }
-
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(sum / total, 1.0);
 }
 `;
 
 // --- runtime shaders (cheap) ---
 
 export const sunVertex = /* glsl */ `
+uniform float uFlipV;
 varying vec2 vUv;
 varying vec3 vNormal;
 varying vec3 vView;
 void main() {
-  vUv = uv;
+  vUv = ${SURFACE_UV};
   vec4 world = modelMatrix * vec4(position, 1.0);
   vNormal = normalize(mat3(modelMatrix) * normal);
   vView = cameraPosition - world.xyz;
@@ -421,7 +380,8 @@ varying vec3 vView;
 void main() {
   float mu = max(dot(normalize(vNormal), normalize(vView)), 0.0);
   vec3 col = texture2D(uMap, vUv).rgb;
-  col *= 0.5 + 0.7 * pow(mu, 0.45); // limb darkening
+  col = mix(col, vec3(1.0, 0.93, 0.78), 0.25) * 1.35;
+  col *= 0.55 + 0.6 * pow(mu, 0.5); // limb darkening
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -482,14 +442,24 @@ export const ringFragment = /* glsl */ `
 uniform vec3 uColor;
 uniform vec3 uSunDirLocal; // ring space, normalized
 uniform float uBrightness;
+#ifdef RING_TEXTURE
+uniform sampler2D uRingTex;
+uniform vec2 uRingRange; // inner, outer radius covered by the texture
+#endif
 varying vec3 vLocal;
 varying vec3 vWorld;
 ${RING_DENSITY}
 void main() {
   float r = length(vLocal.xy);
+#ifdef RING_TEXTURE
+  float u = (r - uRingRange.x) / (uRingRange.y - uRingRange.x);
+  vec4 tex = texture2D(uRingTex, vec2(clamp(u, 0.0, 1.0), 0.5));
+  float d = tex.a * step(0.0, u) * step(u, 1.0);
+#else
   float fw = fwidth(r);
   // average density across the pixel footprint so thin rings don't shimmer
   float d = (ringDensity(r - fw * 0.5) + ringDensity(r) + ringDensity(r + fw * 0.5)) / 3.0;
+#endif
 
   // planet shadow (planet is a unit sphere in ring space)
   vec3 q = vec3(vLocal.xy, 0.0);
@@ -498,7 +468,11 @@ void main() {
   float shadow = (disc > 0.0 && -bq - sqrt(disc) > 0.0) ? 0.08 : 1.0;
 
   float facing = 0.45 + 0.55 * abs(uSunDirLocal.z);
+#ifdef RING_TEXTURE
+  vec3 col = tex.rgb * uColor * facing * shadow * uBrightness;
+#else
   vec3 col = uColor * (0.85 + 0.3 * ringNoise(r * 60.0)) * facing * shadow * uBrightness;
+#endif
   gl_FragColor = vec4(col, clamp(d, 0.0, 1.0));
 }
 `;
@@ -508,22 +482,162 @@ attribute float aSize;
 attribute vec3 aColor;
 uniform float uPixelRatio;
 varying vec3 vColor;
+varying float vGlow;
+varying float vPixels;
 void main() {
   vColor = aColor;
+  vGlow = smoothstep(3.0, 7.0, aSize);
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
-  gl_PointSize = aSize * uPixelRatio;
+  // at least 3 device pixels, so even faint stars cover a full pixel footprint and don't shimmer
+  vPixels = max(aSize * uPixelRatio, 3.0);
+  gl_PointSize = vPixels;
 }
 `;
 
 export const starsFragment = /* glsl */ `
 varying vec3 vColor;
+varying float vGlow;
+varying float vPixels;
 void main() {
   vec2 c = gl_PointCoord - 0.5;
   float d = length(c) * 2.0;
-  float core = exp(-d * d * 40.0);
-  float halo = exp(-d * 9.0) * 0.18;
-  float a = (core + halo) * (1.0 - smoothstep(0.75, 1.0, d));
+  float px = length(c) * vPixels; // distance from the centre in device pixels
+  float core = exp(-px * px / 0.8); // ~1 px wide core whatever the sprite size
+  float halo = exp(-d * 5.0) * 0.22 * vGlow; // only bright stars get a glow
+  float a = (core + halo) * (1.0 - smoothstep(0.8, 1.0, d));
   gl_FragColor = vec4(vColor * a, 1.0);
+}
+`;
+
+export const skyVertex = /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+export const skyFragment = /* glsl */ `
+uniform sampler2D uMap;
+uniform float uBrightness;
+varying vec2 vUv;
+void main() {
+  vec3 col = texture2D(uMap, vUv).rgb * uBrightness;
+  // dither so the dark, brightened gradient doesn't band into steps
+  float noise = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+  gl_FragColor = vec4(col + (noise - 0.5) / 255.0, 1.0);
+}
+`;
+
+// Every body but the Sun (photo or baked surface), lit by the Sun at runtime. Normals and lighting are in view space,
+// which stays correct under the oblate scale of Jupiter and Saturn.
+export const planetVertex = /* glsl */ `
+uniform vec3 uSunPos;
+uniform float uFlipV;
+varying vec2 vUv;
+varying vec3 vNormal;
+varying vec3 vViewPos;
+varying vec3 vSunDir;
+varying vec3 vWorld;
+void main() {
+  vUv = ${SURFACE_UV};
+  vec4 world = modelMatrix * vec4(position, 1.0);
+  vWorld = world.xyz;
+  vec4 mv = viewMatrix * world;
+  vViewPos = mv.xyz;
+  vNormal = normalize(normalMatrix * normal);
+  vSunDir = (viewMatrix * vec4(uSunPos, 1.0)).xyz - mv.xyz;
+  gl_Position = projectionMatrix * mv;
+}
+`;
+
+export const planetFragment = /* glsl */ `
+uniform sampler2D uMap;
+uniform vec2 uTexel; // 1 / texture size
+uniform float uBump; // relief height in world units for a full black-to-white change
+uniform float uAmbient;
+#ifdef EARTH
+uniform sampler2D uNight;
+uniform sampler2D uClouds;
+uniform sampler2D uSpecular;
+#endif
+#ifdef RING_SHADOW
+uniform sampler2D uRingTex;
+uniform vec2 uRingRange;
+uniform vec3 uSunPos;
+uniform vec3 uRingCenter; // world
+uniform vec3 uRingNormal; // world
+uniform float uRingRadius; // planet radius, world units
+#endif
+varying vec2 vUv;
+varying vec3 vNormal;
+varying vec3 vViewPos;
+varying vec3 vSunDir;
+varying vec3 vWorld;
+
+float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+// Relief from the texture's brightness, as in three's bump map, but with the slope taken
+// across texels (central differences) so it stays smooth when the texture is magnified.
+vec3 bumpNormal(vec3 n) {
+  vec2 tu = vec2(uTexel.x, 0.0);
+  vec2 tv = vec2(0.0, uTexel.y);
+  float hu = (luma(texture2D(uMap, vUv + tu).rgb) - luma(texture2D(uMap, vUv - tu).rgb)) / (2.0 * uTexel.x);
+  float hv = (luma(texture2D(uMap, vUv + tv).rgb) - luma(texture2D(uMap, vUv - tv).rgb)) / (2.0 * uTexel.y);
+  vec2 dx = dFdx(vUv);
+  vec2 dy = dFdy(vUv);
+  vec2 dh = vec2(hu * dx.x + hv * dx.y, hu * dy.x + hv * dy.y) * uBump;
+  vec3 sx = dFdx(vViewPos);
+  vec3 sy = dFdy(vViewPos);
+  vec3 r1 = cross(sy, n);
+  vec3 r2 = cross(n, sx);
+  float det = dot(sx, r1);
+  vec3 grad = sign(det) * (dh.x * r1 + dh.y * r2);
+  return normalize(abs(det) * n - grad);
+}
+
+void main() {
+  vec3 geo = normalize(vNormal);
+  vec3 V = normalize(-vViewPos);
+  vec3 L = normalize(vSunDir);
+  vec3 albedo = texture2D(uMap, vUv).rgb;
+
+  vec3 N = uBump > 0.0 ? bumpNormal(geo) : geo;
+  float terminator = smoothstep(-0.06, 0.12, dot(geo, L));
+  float diffuse = max(dot(N, L), 0.0) * terminator;
+
+#ifdef GAS
+  // gas giants darken toward the limb
+  diffuse *= 0.55 + 0.45 * pow(max(dot(geo, V), 0.0), 0.35);
+#endif
+
+  vec3 col = albedo * (diffuse * 1.12 + uAmbient);
+
+#ifdef EARTH
+  float cloud = texture2D(uClouds, vUv).r;
+  float ocean = texture2D(uSpecular, vUv).r;
+  vec3 H = normalize(L + V);
+  float glint = pow(max(dot(geo, H), 0.0), 70.0) * ocean * (1.0 - cloud) * terminator;
+  col += vec3(1.0, 0.92, 0.8) * glint * 0.55;
+  col = mix(col, vec3(diffuse * 1.05 + uAmbient), cloud * 0.92);
+  float night = 1.0 - smoothstep(-0.18, 0.08, dot(geo, L));
+  col += texture2D(uNight, vUv).rgb * vec3(1.0, 0.85, 0.62) * night * (1.0 - cloud * 0.8) * 1.3;
+#endif
+
+#ifdef RING_SHADOW
+  vec3 Lw = normalize(uSunPos - vWorld);
+  float denom = dot(Lw, uRingNormal);
+  if (abs(denom) > 1e-4) {
+    float t = dot(uRingCenter - vWorld, uRingNormal) / denom;
+    if (t > 0.0) {
+      float r = length(vWorld + Lw * t - uRingCenter) / uRingRadius;
+      float u = (r - uRingRange.x) / (uRingRange.y - uRingRange.x);
+      if (u > 0.0 && u < 1.0) col *= 1.0 - texture2D(uRingTex, vec2(u, 0.5)).a * 0.85;
+    }
+  }
+#endif
+
+  gl_FragColor = vec4(col, 1.0);
 }
 `;

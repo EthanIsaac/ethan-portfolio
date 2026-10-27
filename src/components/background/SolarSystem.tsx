@@ -7,10 +7,14 @@ import {
   BODIES,
   BodyDef,
   CAMERA,
-  CAMERA_STOPS,
+  EARTH_LAYERS,
+  MOTION,
+  PhotoTexture,
   Quality,
   QUALITY,
   RingType,
+  SKY_TEXTURE,
+  TextureTier,
   toSceneDistance,
   toSceneRadius,
 } from './config';
@@ -18,8 +22,12 @@ import { Baker, RING_TYPE_INDEX } from './bake';
 import {
   atmosphereFragment,
   atmosphereVertex,
+  planetFragment,
+  planetVertex,
   ringFragment,
   ringVertex,
+  skyFragment,
+  skyVertex,
   starsFragment,
   starsVertex,
   sunFragment,
@@ -31,11 +39,21 @@ const UP = new THREE.Vector3(0, 1, 0);
 const SUN_POSITION = new THREE.Vector3(0, 0, 0);
 const SKY_RADIUS = 1800;
 const STAR_RADIUS = 1500;
-const GALACTIC_POLE = new THREE.Vector3(0.35, 0.8, 0.48).normalize();
+// the sky panorama is in galactic coordinates: its equator (the Milky Way) maps to the y=0 plane
+const GALACTIC_POLE = new THREE.Vector3(0, 1, 0);
+
+// radii (in Saturn radii) spanned by the ring texture, from the C ring out to the A ring
+const SATURN_RING_RANGE: [number, number] = [1.11, 2.33];
+const SATURN_RING_URL = '/textures/saturn_ring.png';
+const TIERS: TextureTier[] = ['1k', '2k', '4k'];
+// a body's photo texture is upgraded once it covers this much of the view (radius / distance)
+const UPGRADE_ANGULAR_SIZE = 0.012;
+// relief height, as a fraction of the body's radius, for a texture's full brightness range
+const BUMP_SCALE = 0.004;
 
 const RINGS: Record<RingType, { inner: number; outer: number; color: string; brightness: number }> = {
-  jupiter: { inner: 1.35, outer: 3.2, color: '#b59a7c', brightness: 1.2 },
-  saturn: { inner: 1.2, outer: 2.36, color: '#d8c49c', brightness: 1 },
+  jupiter: { inner: 1.35, outer: 3.2, color: '#b59a7c', brightness: 0.5 },
+  saturn: { inner: SATURN_RING_RANGE[0], outer: SATURN_RING_RANGE[1], color: '#f2dfbd', brightness: 1.15 },
   uranus: { inner: 1.6, outer: 2.06, color: '#8a8580', brightness: 1.6 },
   neptune: { inner: 1.6, outer: 2.6, color: '#8f8f96', brightness: 1.4 },
 };
@@ -46,7 +64,27 @@ interface PlacedBody {
   holder: THREE.Group;
   mesh: THREE.Mesh;
   extent: number; // radius of the body plus its rings and moons
+  axis: THREE.Vector3; // world-space pole; fixed, like a real spin axis
+  motion: Motion;
 }
+
+/** How a body moves: see MOTION in config. Rates are radians per second. */
+interface Motion {
+  tilt: THREE.Quaternion;
+  spin: number; // starting rotation around the pole
+  spinRate: number;
+  home: THREE.Vector3; // starting position, for bodies orbiting the Sun
+  orbitRate: number; // around the Sun, or around the parent for moons
+  parent?: PlacedBody;
+  orbitRadius?: number; // moons
+  orbitAngle?: number; // moons: starting angle in the parent's equatorial plane
+  ring?: THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
+}
+
+const TURN = Math.PI * 2;
+// compressed period in seconds for a real period of `real` days (or years): see MOTION
+const rate = (real: number | undefined, seconds: number) =>
+  real ? (Math.sign(real) * TURN) / (seconds * Math.sqrt(Math.abs(real))) : 0;
 
 function isMobileDevice() {
   return window.matchMedia('(pointer: coarse), (max-width: 768px)').matches;
@@ -78,10 +116,10 @@ function buildStars(count: number) {
   const bitangent = GALACTIC_POLE.clone().cross(tangent);
 
   for (let i = 0; i < count; i++) {
-    if (Math.random() < 0.4) {
+    if (Math.random() < 0.5) {
       // concentrated toward the Milky Way's plane
       const a = Math.random() * Math.PI * 2;
-      const b = (Math.random() + Math.random() + Math.random() - 1.5) * 0.25;
+      const b = (Math.random() + Math.random() + Math.random() - 1.5) * 0.18;
       v.copy(tangent).multiplyScalar(Math.cos(a)).addScaledVector(bitangent, Math.sin(a)).addScaledVector(GALACTIC_POLE, b);
     } else {
       v.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
@@ -92,11 +130,13 @@ function buildStars(count: number) {
     let r = Math.random();
     let k = 0;
     while (k < weights.length - 1 && r > weights[k]) r -= weights[k++];
-    const bright = Math.pow(Math.random(), 6);
-    sizes[i] = 1.6 + bright * 9;
+    // like real magnitudes: a few bright stars, many faint ones; faint stars stay tiny and
+    // just get dimmer, so they read as crisp points rather than blobs
+    const bright = Math.pow(Math.random(), 12);
+    sizes[i] = 2 + bright * 7;
     palette[k]
       .clone()
-      .multiplyScalar(0.35 + 0.65 * Math.pow(Math.random(), 2) + bright)
+      .multiplyScalar(0.35 + 0.65 * Math.pow(Math.random(), 3) + bright * 1.2)
       .toArray(colors, i * 3);
   }
 
@@ -117,6 +157,153 @@ function buildStars(count: number) {
   return points;
 }
 
+interface TextureLayer {
+  name: string;
+  max: number; // highest tier index that exists for this file
+}
+
+interface StreamedTexture {
+  layers: TextureLayer[];
+  max: number; // highest tier index worth loading for this item
+  tier: number; // tier index currently shown, -1 before the first load
+  pending: boolean;
+  base: THREE.Texture[] | null; // lowest tier, kept for the whole session
+  upgraded: THREE.Texture[] | null; // higher tier, released again when the body is far away
+  center?: THREE.Vector3;
+  radius?: number;
+  url?: (layer: TextureLayer, tier: number) => string;
+  apply: (textures: THREE.Texture[]) => void;
+  fallback?: () => void; // if even the lowest tier fails to load
+}
+
+function tierIndex(texture: PhotoTexture, quality: Quality) {
+  return Math.min(TIERS.indexOf(texture.max), TIERS.indexOf(quality.textureTier));
+}
+
+function createTextureStreamer(gl: THREE.WebGLRenderer) {
+  const loader = new THREE.TextureLoader();
+  const items: StreamedTexture[] = [];
+  let disposed = false;
+  let onChange = () => {};
+
+  // Upgrades wait here until the camera is still, then upload one texture per frame, so a
+  // big texture never stalls a moving frame and a multi-layer body never uploads all at once.
+  const uploads: { item: StreamedTexture; tier: number; textures: THREE.Texture[]; done: number }[] = [];
+
+  const urlFor = (item: StreamedTexture, layer: TextureLayer, tier: number) =>
+    item.url ? item.url(layer, tier) : `/textures/${TIERS[Math.min(tier, layer.max)]}/${layer.name}.webp`;
+
+  // Photo textures are uploaded unflipped (flipY = false) and the shaders that sample them flip v
+  // themselves (see STREAMED_UV in shaders.ts). That lets us use ImageBitmaps, which decode off
+  // the main thread and stay decoded, so a 4K upload doesn't re-decode the image mid-frame.
+  // (createImageBitmap's own flip option isn't reliable across browsers.)
+  const prepare = (texture: THREE.Texture) => {
+    texture.flipY = false;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+    texture.needsUpdate = true;
+    return texture;
+  };
+
+  const loadOne = async (url: string) => {
+    if (typeof createImageBitmap === 'function') {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${response.status} ${url}`);
+      const bitmap = await createImageBitmap(await response.blob());
+      const texture = prepare(new THREE.Texture(bitmap as unknown as HTMLImageElement));
+      texture.addEventListener('dispose', () => bitmap.close());
+      return texture;
+    }
+    return prepare(await loader.loadAsync(url));
+  };
+
+  const loadTier = (item: StreamedTexture, tier: number) =>
+    Promise.all(item.layers.map((layer) => loadOne(urlFor(item, layer, tier))));
+
+  const release = (textures: THREE.Texture[] | null) => textures?.forEach((t) => t.dispose());
+
+  const loadBase = async (item: StreamedTexture, tier: number) => {
+    try {
+      const textures = await loadTier(item, tier);
+      if (disposed) return release(textures);
+      textures.forEach((t) => gl.initTexture(t));
+      item.base = textures;
+      item.tier = tier;
+      item.apply(textures);
+      onChange();
+    } catch {
+      if (!disposed) item.fallback?.();
+    }
+  };
+
+  const upgrade = async (item: StreamedTexture) => {
+    item.pending = true;
+    try {
+      const textures = await loadTier(item, item.max);
+      if (disposed) return release(textures);
+      uploads.push({ item, tier: item.max, textures, done: 0 });
+      onChange(); // wake the render loop so a still camera picks it up
+    } catch {
+      item.max = item.tier; // that tier isn't available; stop asking for it
+      item.pending = false;
+    }
+  };
+
+  return {
+    items,
+    add(item: Omit<StreamedTexture, 'tier' | 'pending' | 'base' | 'upgraded'>) {
+      const full: StreamedTexture = { ...item, tier: -1, pending: false, base: null, upgraded: null };
+      items.push(full);
+      return full;
+    },
+    /** Loads the lowest tier of every texture. Items without a position (the sky) go straight to their best. */
+    loadInitial() {
+      return Promise.all(items.map((item) => loadBase(item, item.center ? 0 : item.max)));
+    },
+    /** Streams textures in and out with the camera. Cheap enough to run every frame. */
+    update(camera: THREE.Camera, moving: boolean) {
+      if (!moving && uploads.length) {
+        const upload = uploads[0];
+        gl.initTexture(upload.textures[upload.done++]);
+        if (upload.done === upload.textures.length) {
+          uploads.shift();
+          const { item } = upload;
+          release(item.upgraded);
+          item.upgraded = upload.textures;
+          item.tier = upload.tier;
+          item.pending = false;
+          item.apply(upload.textures);
+        }
+        onChange();
+      }
+      for (const item of items) {
+        if (item.pending || item.tier < 0 || !item.center) continue;
+        const size = item.radius / camera.position.distanceTo(item.center);
+        if (item.tier < item.max && size > UPGRADE_ANGULAR_SIZE) {
+          upgrade(item);
+        } else if (item.upgraded && size < UPGRADE_ANGULAR_SIZE / 4) {
+          // far away again: drop back to the small texture to free GPU memory
+          item.apply(item.base);
+          release(item.upgraded);
+          item.upgraded = null;
+          item.tier = 0;
+        }
+      }
+    },
+    setOnChange(callback: () => void) {
+      onChange = callback;
+    },
+    dispose() {
+      disposed = true;
+      uploads.forEach((u) => release(u.textures));
+      items.forEach((item) => {
+        release(item.base);
+        release(item.upgraded);
+      });
+    },
+  };
+}
+
 function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
   const root = new THREE.Group();
   const disposables: { dispose: () => void }[] = [];
@@ -127,11 +314,25 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
   const sphereLow = track(new THREE.SphereGeometry(1, segW / 2, segH / 2));
   const placed = new Map<string, PlacedBody>();
   const tiltOf = new Map<string, THREE.Quaternion>();
+  const streamer = createTextureStreamer(gl);
+  // shared by Saturn's ring and its ring shadow; fully transparent until the real texture loads
+  const clear = track(new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1));
+  clear.needsUpdate = true;
+  const ringTexture: THREE.IUniform<THREE.Texture> = { value: clear };
+  streamer.add({
+    layers: [{ name: 'saturn_ring', max: 0 }],
+    max: 0,
+    url: () => SATURN_RING_URL,
+    apply: ([ring]) => (ringTexture.value = ring),
+  });
 
   for (const def of BODIES) {
     const radius = toSceneRadius(def.radiusKm);
     const holder = new THREE.Group();
     let tilt: THREE.Quaternion;
+
+    const spin = (def.spin ?? 0) * DEG;
+    const motion: Motion = { tilt: null, spin, spinRate: rate(def.day, MOTION.spin), home: null, orbitRate: 0 };
 
     if (def.parent) {
       const parent = placed.get(def.parent);
@@ -142,18 +343,31 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
         .applyQuaternion(tilt);
       holder.position.copy(parent.holder.position).add(offset);
       parent.extent = Math.max(parent.extent, offset.length() + radius);
+      Object.assign(motion, {
+        parent,
+        orbitRadius: offset.length(),
+        orbitAngle: a,
+        // moons keep their near side (the texture's longitude 0) toward their planet, turning once per orbit
+        spin: a + Math.PI + spin,
+        orbitRate: rate(def.period, MOTION.moon),
+      });
+      // a planet locked to its moon (Pluto and Charon) turns with it
+      if (parent.def.day && Math.abs(parent.def.day - Math.abs(def.period ?? 0)) < 0.01) parent.motion.spinRate = motion.orbitRate;
     } else {
       tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (def.tilt ?? 0) * DEG);
       if (def.au) {
         const d = toSceneDistance(def.au);
         const a = (def.angle ?? 0) * DEG;
         holder.position.set(d * Math.cos(a), def.height ?? 0, -d * Math.sin(a));
+        // Kepler: a year lasts au^1.5 Earth years
+        motion.orbitRate = rate(def.au ** 1.5, MOTION.year);
       }
     }
     tiltOf.set(def.name, tilt);
+    motion.tilt = tilt;
+    motion.home = holder.position.clone();
 
-    const spin = new THREE.Quaternion().setFromAxisAngle(UP, (def.spin ?? 0) * DEG);
-    holder.quaternion.copy(tilt).multiply(spin);
+    holder.quaternion.copy(tilt).multiply(new THREE.Quaternion().setFromAxisAngle(UP, spin));
     holder.scale.setScalar(radius);
 
     const geometry = radius > 0.25 || def.kind === 'star' ? sphereHigh : sphereLow;
@@ -174,8 +388,13 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
               uColor: { value: new THREE.Color(cfg.color) },
               uSunDirLocal: { value: new THREE.Vector3(0, 0, 1) },
               uBrightness: { value: cfg.brightness },
+              uRingTex: ringTexture,
+              uRingRange: { value: new THREE.Vector2(...SATURN_RING_RANGE) },
             },
-            defines: { RING_TYPE: RING_TYPE_INDEX[def.ring] },
+            defines:
+              def.ring === 'saturn'
+                ? { RING_TYPE: RING_TYPE_INDEX[def.ring], RING_TEXTURE: '' }
+                : { RING_TYPE: RING_TYPE_INDEX[def.ring] },
             extensions: { derivatives: true } as THREE.ShaderMaterial['extensions'],
             side: THREE.DoubleSide,
             transparent: true,
@@ -184,8 +403,8 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
         )
       );
       ring.rotation.x = -Math.PI / 2;
-      ring.name = 'ring';
       holder.add(ring);
+      motion.ring = ring;
       extent = Math.max(extent, radius * cfg.outer);
     }
 
@@ -219,27 +438,146 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     }
 
     root.add(holder);
-    placed.set(def.name, { def, radius, holder, mesh, extent });
+    const axis = UP.clone().applyQuaternion(tilt);
+    placed.set(def.name, { def, radius, holder, mesh, extent, axis, motion });
   }
 
+  const turn = new THREE.Quaternion();
+  const toSun = new THREE.Vector3();
+  const ringToWorld = new THREE.Quaternion();
+  const ringTilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  // where every body is `t` seconds in (parents come before their moons in BODIES)
+  const animate = (t: number) => {
+    placed.forEach(({ holder, motion }) => {
+      let spin = motion.spin + motion.spinRate * t;
+      if (motion.parent) {
+        const a = motion.orbitAngle + motion.orbitRate * t;
+        holder.position
+          .set(Math.cos(a), 0, -Math.sin(a))
+          .multiplyScalar(motion.orbitRadius)
+          .applyQuaternion(motion.tilt)
+          .add(motion.parent.holder.position);
+        spin = motion.spin + motion.orbitRate * t;
+      } else if (motion.orbitRate) {
+        holder.position.copy(motion.home).applyAxisAngle(UP, motion.orbitRate * t);
+      }
+      holder.quaternion.copy(motion.tilt).multiply(turn.setFromAxisAngle(UP, spin));
+
+      if (motion.ring) {
+        // the Sun's direction in the ring's own plane, for the planet's shadow on it
+        ringToWorld.copy(holder.quaternion).multiply(ringTilt).invert();
+        toSun.copy(SUN_POSITION).sub(holder.position).normalize().applyQuaternion(ringToWorld);
+        motion.ring.material.uniforms.uSunDirLocal.value.copy(toSun);
+      }
+    });
+  };
+  animate(0);
   root.updateMatrixWorld(true);
 
-  // Surfaces are baked later in small batches (see Scene); each job bakes one texture with
-  // the Sun's direction in that body's own space.
+  const placeholder = track(new THREE.DataTexture(new Uint8Array([8, 8, 8, 255]), 1, 1));
+  placeholder.needsUpdate = true;
   const baker = track(new Baker(gl, quality));
-  const bakeJobs: (() => void)[] = BODIES.map((def, i) => () => {
+  const bakeJobs: (() => void)[] = [];
+
+  BODIES.forEach((def, i) => {
     const body = placed.get(def.name);
-    const sunDir = body.mesh.worldToLocal(SUN_POSITION.clone()).normalize();
-    const target = track(baker.body(def, sunDir, i * 1.618));
+    const bake = () => track(baker.body(def, i * 1.618)).texture;
+    const layer = (name: string, max = TIERS.indexOf(def.texture?.max ?? '1k')) => ({ name, max });
+
     if (def.kind === 'star') {
-      body.mesh.material = track(
-        new THREE.ShaderMaterial({ vertexShader: sunVertex, fragmentShader: sunFragment, uniforms: { uMap: { value: target.texture } } })
+      const material = track(
+        new THREE.ShaderMaterial({
+          vertexShader: sunVertex,
+          fragmentShader: sunFragment,
+          uniforms: { uMap: { value: placeholder }, uFlipV: { value: 1 } },
+        })
       );
-    } else {
-      body.mesh.material = track(new THREE.MeshBasicMaterial({ map: target.texture }));
+      body.mesh.material = material;
+      streamer.add({
+        layers: [layer(def.texture.name)],
+        max: tierIndex(def.texture, quality),
+        center: body.holder.position,
+        radius: body.radius,
+        apply: ([map]) => (material.uniforms.uMap.value = map),
+        fallback: () => {
+          material.uniforms.uMap.value = bake();
+          material.uniforms.uFlipV.value = 0;
+        },
+      });
+      return;
     }
-    const ring = body.holder.getObjectByName('ring') as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
-    if (ring) ring.material.uniforms.uSunDirLocal.value = ring.worldToLocal(SUN_POSITION.clone()).normalize();
+
+    // lit by the Sun at runtime, from a real photo texture or a baked procedural one
+    const earth = Boolean(def.texture) && def.surface.type === 'earth';
+    const defines: Record<string, string> = {};
+    if (def.surface.type === 'gas') defines.GAS = '';
+    if (earth) defines.EARTH = '';
+    if (def.ring === 'saturn') defines.RING_SHADOW = '';
+    const material = track(
+      new THREE.ShaderMaterial({
+        vertexShader: planetVertex,
+        fragmentShader: planetFragment,
+        uniforms: {
+          uMap: { value: placeholder },
+          uFlipV: { value: 1 },
+          uTexel: { value: new THREE.Vector2(1, 1) },
+          uBump: { value: (def.texture?.bump ?? 0) * body.radius * BUMP_SCALE },
+          uAmbient: { value: 0.02 },
+          uSunPos: { value: SUN_POSITION },
+          uNight: { value: placeholder },
+          uClouds: { value: placeholder },
+          uSpecular: { value: placeholder },
+          uRingTex: ringTexture,
+          uRingRange: { value: new THREE.Vector2(...SATURN_RING_RANGE) },
+          uRingCenter: { value: body.holder.position },
+          uRingNormal: { value: body.axis },
+          uRingRadius: { value: body.radius },
+        },
+        defines,
+        extensions: { derivatives: true } as THREE.ShaderMaterial['extensions'],
+      })
+    );
+    body.mesh.material = material;
+    const useMap = (map: THREE.Texture, width: number, height: number) => {
+      material.uniforms.uMap.value = map;
+      material.uniforms.uTexel.value.set(1 / width, 1 / height);
+    };
+    const useBake = () => {
+      const map = bake();
+      useMap(map, map.image.width, map.image.height);
+      material.uniforms.uFlipV.value = 0;
+      const { surface } = def;
+      material.uniforms.uBump.value = surface.type === 'rocky' ? (surface.bump ?? 0.7) * body.radius * BUMP_SCALE : 0;
+    };
+
+    if (!def.texture) {
+      bakeJobs.push(useBake);
+      return;
+    }
+    streamer.add({
+      layers: earth
+        ? [layer(def.texture.name), ...EARTH_LAYERS.map(({ name, max }) => layer(name, TIERS.indexOf(max)))]
+        : [layer(def.texture.name)],
+      max: tierIndex(def.texture, quality),
+      center: body.holder.position,
+      radius: body.radius,
+      apply: ([map, night, clouds, specular]) => {
+        useMap(map, map.image.width, map.image.height);
+        if (earth) {
+          material.uniforms.uNight.value = night;
+          material.uniforms.uClouds.value = clouds;
+          material.uniforms.uSpecular.value = specular;
+        }
+      },
+      // the photo texture couldn't load (e.g. no WebP support): use the procedural surface
+      fallback: () => {
+        material.defines = {};
+        if (def.surface.type === 'gas') material.defines.GAS = '';
+        if (def.ring === 'saturn') material.defines.RING_SHADOW = '';
+        material.needsUpdate = true;
+        useBake();
+      },
+    });
   });
 
   // Sun glow
@@ -256,13 +594,30 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     root.add(sprite);
   }
 
-  // sky: baked Milky Way + faint stars, plus brighter glowing point stars; follows the camera
+  // sky: real Milky Way panorama plus glowing point stars; follows the camera
   const sky = new THREE.Group();
-  const skySphere = new THREE.Mesh(track(new THREE.SphereGeometry(SKY_RADIUS, 64, 32)));
+  // The panorama only supplies the soft Milky Way glow (it can't be sharp enough for a
+  // full-screen sky); the crisp stars are the points below.
+  const skyMaterial = track(
+    new THREE.ShaderMaterial({
+      vertexShader: skyVertex,
+      fragmentShader: skyFragment,
+      uniforms: { uMap: { value: clear }, uBrightness: { value: 1.7 } },
+      side: THREE.BackSide,
+      depthWrite: false,
+    })
+  );
+  const skySphere = new THREE.Mesh(track(new THREE.SphereGeometry(SKY_RADIUS, 64, 32)), skyMaterial);
   skySphere.renderOrder = -2;
-  bakeJobs.push(() => {
-    const skyTarget = track(baker.sky());
-    skySphere.material = track(new THREE.MeshBasicMaterial({ map: skyTarget.texture, side: THREE.BackSide, depthWrite: false }));
+  skySphere.visible = false;
+  streamer.add({
+    layers: [{ name: SKY_TEXTURE.name, max: TIERS.indexOf(SKY_TEXTURE.max) }],
+    max: tierIndex(SKY_TEXTURE, quality),
+    apply: ([map]) => {
+      skyMaterial.uniforms.uMap.value = track(baker.skyGlow(map)).texture;
+      map.dispose(); // only needed for the bake; free the 2K source
+      skySphere.visible = true;
+    },
   });
   const stars = buildStars(quality.starCount);
   track(stars.geometry);
@@ -277,42 +632,55 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     stars,
     placed,
     bakeJobs,
-    dispose: () => disposables.forEach((d) => d.dispose()),
+    streamer,
+    animate,
+    /** How far a body has travelled around the Sun at time `t`, radians about the Sun's pole. */
+    orbitTurn: (name: string, t: number) => placed.get(name).motion.orbitRate * t,
+    loadTextures: () => streamer.loadInitial(),
+    dispose: () => {
+      streamer.dispose();
+      disposables.forEach((d) => d.dispose());
+    },
   };
 }
 
 type System = ReturnType<typeof buildSystem>;
 
-function buildCameraPath(system: System, aspect: number) {
-  const halfHeight = Math.tan((CAMERA.fov / 2) * DEG);
-  // push each body toward one side of the screen so the page text stays readable
-  const sideShift = aspect > 1 ? 0.42 : 0.12;
-  const cams: THREE.Vector3[] = [new THREE.Vector3(-14, 8, -42)];
-  const looks: THREE.Vector3[] = [new THREE.Vector3(16, -2, 0)];
-
-  CAMERA_STOPS.forEach((name, i) => {
-    const { holder, radius, extent } = system.placed.get(name);
-    const pos = holder.position;
-    const radial = new THREE.Vector3(pos.x, 0, pos.z).normalize();
-    const tangent = new THREE.Vector3().crossVectors(UP, radial);
-    const dir = radial.multiplyScalar(-0.45).add(tangent.multiplyScalar(0.85)).addScaledVector(UP, 0.3).normalize();
-    const dist = Math.max(radius * 6, extent * 2.1);
-    const cam = pos.clone().addScaledVector(dir, dist);
-    const look = pos.clone();
-
-    const forward = look.clone().sub(cam).normalize();
-    const right = new THREE.Vector3().crossVectors(forward, UP).normalize();
-    const shift = dist * halfHeight * aspect * sideShift * (i % 2 ? 1 : -1);
-    cams.push(cam.addScaledVector(right, shift));
-    looks.push(look.addScaledVector(right, shift));
-  });
-
-  const camCurve = new THREE.CatmullRomCurve3(cams, false, 'centripetal');
-  const lookCurve = new THREE.CatmullRomCurve3(looks, false, 'centripetal');
-  return { camCurve, lookCurve };
+interface Pose {
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
 }
 
-type CameraPath = ReturnType<typeof buildCameraPath>;
+/** Where the camera sits to frame each body (at time 0): sunward and to one side, aimed so the body sits off-centre. */
+function buildPoses(system: System, aspect: number) {
+  // half the view's width at unit distance, using the same horizontal field-of-view cap as the camera
+  const halfWidth = Math.min(Math.tan((CAMERA.fov / 2) * DEG) * aspect, Math.tan((CAMERA.maxHorizontalFov / 2) * DEG));
+  // keep the body to one side of the screen so the page text stays readable
+  const sideShift = aspect > 1 ? 0.4 : 0.1;
+  const aim = new THREE.PerspectiveCamera();
+  const poses = new Map<string, Pose>();
+
+  // framed at the starting positions; CameraRig turns each framing to follow its planet's orbit
+  system.placed.forEach(({ motion, radius, extent, def }, name) => {
+    const pos = motion.home;
+    const radial = pos.lengthSq() > 0 ? new THREE.Vector3(pos.x, 0, pos.z).normalize() : new THREE.Vector3(1, 0, 0);
+    const tangent = new THREE.Vector3().crossVectors(UP, radial);
+    const dir = radial.multiplyScalar(-0.45).add(tangent.multiplyScalar(0.85)).addScaledVector(UP, 0.3).normalize();
+    const dist = def.kind === 'star' ? radius * 7 : Math.max(radius * 6, extent * 2.1);
+    const camera = pos.clone().addScaledVector(dir, dist);
+
+    const forward = pos.clone().sub(camera).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, UP).normalize();
+    const look = pos.clone().addScaledVector(right, -dist * halfWidth * sideShift);
+
+    aim.position.copy(camera);
+    aim.lookAt(look);
+    poses.set(name, { position: camera, quaternion: aim.quaternion.clone() });
+  });
+  return poses;
+}
+
+type Poses = ReturnType<typeof buildPoses>;
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = React.useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -325,54 +693,161 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-function scrollProgress() {
-  const max = document.documentElement.scrollHeight - window.innerHeight;
-  return max > 0 ? THREE.MathUtils.clamp(window.scrollY / max, 0, 1) : 0;
+const smootherstep = (x: number) => {
+  const t = THREE.MathUtils.clamp(x, 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
+
+/**
+ * Page sections opt in with `data-planet="<body name> [<body name> ...]"`. Each section owns the
+ * scroll from when its top crosses the middle of the screen (the first one from the top of the
+ * page, all of them within the page's scroll range) until the next one's does, split evenly
+ * between its bodies. Returns the bodies in page order and a continuous stop value for the
+ * current scroll position: whole numbers while a body is framed, easing to the next one over up
+ * to CAMERA.transition viewport heights centred on that body's share of the scroll beginning, and
+ * never more than two thirds of a share, so every body keeps some scroll to rest on. Once the
+ * camera's easing settles, the same scroll position always gives the same view.
+ */
+function readSections(placed: Map<string, PlacedBody>) {
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-planet]'));
+  const height = window.innerHeight;
+  const maxScroll = Math.max(0, document.documentElement.scrollHeight - height);
+  const starts = sections.map((el, i) =>
+    i === 0 ? 0 : THREE.MathUtils.clamp(el.getBoundingClientRect().top + window.scrollY - height / 2, 0, maxScroll)
+  );
+
+  const names: string[] = [];
+  const anchors: number[] = [];
+  sections.forEach((el, i) => {
+    // planets, dwarfs and the Sun only: framings follow orbits around the Sun, not around a planet
+    const bodies = el.dataset.planet.split(/\s+/).filter((name) => placed.has(name) && !placed.get(name).def.parent);
+    const end = i + 1 < sections.length ? starts[i + 1] : maxScroll;
+    bodies.forEach((name, j) => {
+      names.push(name);
+      anchors.push(starts[i] + ((end - starts[i]) * j) / bodies.length);
+    });
+  });
+
+  if (!names.length) return { names: ['Sun'], value: 0 };
+  // nothing to scroll through: stay on the first body
+  if (maxScroll < 1) return { names, value: 0 };
+
+  // a body whose share has no length (its section is squeezed out of the scroll range) is skipped
+  const squeezed = (i: number) => anchors[i] - anchors[i - 1] < 2;
+  let final = anchors.length - 1;
+  while (final > 0 && squeezed(final)) final--;
+
+  let value = 0;
+  for (let i = 1; i < anchors.length; i++) {
+    if (squeezed(i)) {
+      value += window.scrollY >= anchors[i] - 1 ? 1 : 0;
+      continue;
+    }
+    // the last body with a share must arrive, and rest a little, before the page ends: its flight may start early
+    const last = i === final;
+    const centre = last ? Math.min(anchors[i], anchors[i - 1] + (maxScroll - anchors[i - 1]) * 0.6) : anchors[i];
+    const after = (last ? maxScroll : anchors[i + 1]) - centre;
+    const half = Math.max(1, Math.min((height * CAMERA.transition) / 2, (centre - anchors[i - 1]) / 3, after / 3));
+    value += smootherstep((window.scrollY - (centre - half)) / (2 * half));
+  }
+  return { names, value };
 }
 
-const lookTarget = new THREE.Vector3();
-
-function CameraRig({ path, sky }: { path: CameraPath; sky: THREE.Object3D }) {
+function CameraRig({ poses, system }: { poses: Poses; system: System }) {
   const invalidate = useThree((s) => s.invalidate);
   const reducedMotion = usePrefersReducedMotion();
-  const progress = useRef<number | null>(null);
+  const names = useRef<string[]>(['Sun']);
+  const value = useRef<number | null>(null);
   const target = useRef(0);
 
   useEffect(() => {
-    if (reducedMotion) {
-      target.current = progress.current = 0;
-      invalidate();
-      return;
-    }
     const onScroll = () => {
-      target.current = scrollProgress();
+      const sections = readSections(system.placed);
+      names.current = sections.names;
+      // with reduced motion, cut between planets instead of flying
+      target.current = reducedMotion ? Math.round(sections.value) : sections.value;
+      if (value.current === null || reducedMotion) value.current = target.current;
       invalidate();
     };
     onScroll();
-    if (progress.current === null) progress.current = target.current;
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+    // sections can change height without a scroll (Experience re-measures itself on resize,
+    // images and fonts load late), so re-read them when the page's layout changes too
+    let frame = 0;
+    const onLayout = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(onScroll);
     };
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onLayout) : null;
+    observer?.observe(document.body);
+    document.querySelectorAll('[data-planet]').forEach((el) => observer?.observe(el));
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onLayout);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onLayout);
+    };
+  }, [reducedMotion, invalidate, system]);
+
+  useEffect(() => invalidate(), [poses, invalidate]);
+
+  // Bodies keep turning while the page is idle; 30 fps is plenty for motion this slow. While
+  // the camera is flying, useFrame below asks for every frame itself.
+  const start = useRef(performance.now());
+  const flying = useRef(false);
+  useEffect(() => {
+    if (reducedMotion) return;
+    // time picks up from the frozen start rather than jumping ahead
+    start.current = performance.now();
+    // hidden tabs skip it, or the requested frames would pile up and burst on return
+    const timer = setInterval(() => !flying.current && document.visibilityState === 'visible' && invalidate(), 1000 / 30);
+    return () => clearInterval(timer);
   }, [reducedMotion, invalidate]);
 
-  useEffect(() => invalidate(), [path, invalidate]);
+  const turn = useMemo(() => new THREE.Quaternion(), []);
+  const poseAt = useMemo(() => {
+    const from = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
+    const to = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion() };
+    return { from, to };
+  }, []);
 
   useFrame(({ camera }, delta) => {
-    const current = progress.current ?? target.current;
-    const diff = target.current - current;
-    let next = target.current;
-    if (Math.abs(diff) > 1e-5) {
-      next = current + diff * (1 - Math.exp(-CAMERA.damping * Math.min(delta, 1 / 30)));
-      invalidate();
-    }
-    progress.current = next;
+    // with reduced motion the system holds still
+    const time = reducedMotion ? 0 : (performance.now() - start.current) / 1000;
+    system.animate(time);
 
-    path.camCurve.getPoint(next, camera.position);
-    camera.lookAt(path.lookCurve.getPoint(next, lookTarget));
-    sky.position.copy(camera.position);
+    // ease toward the scroll position so a fast fling still glides
+    const current = value.current ?? target.current;
+    const diff = target.current - current;
+    const moving = Math.abs(diff) > 1e-4;
+    const next = moving ? current + diff * (1 - Math.exp(-CAMERA.damping * Math.min(delta, 1 / 30))) : target.current;
+    value.current = next;
+    flying.current = moving;
+    if (moving) invalidate();
+
+    const stops = names.current;
+    const i = THREE.MathUtils.clamp(Math.floor(next), 0, Math.max(stops.length - 2, 0));
+    const t = THREE.MathUtils.clamp(next - i, 0, 1);
+    // each framing travels with its planet around the Sun
+    const follow = (name: string, out: Pose) => {
+      const pose = poses.get(name);
+      const angle = system.orbitTurn(name, time);
+      turn.setFromAxisAngle(UP, angle);
+      out.position.copy(pose.position).applyAxisAngle(UP, angle);
+      out.quaternion.copy(turn).multiply(pose.quaternion);
+      return out;
+    };
+    const from = follow(stops[i], poseAt.from);
+    const to = follow(stops[Math.min(i + 1, stops.length - 1)], poseAt.to);
+
+    // one smooth arc between the two framings, rising above the planets' plane so it never clips one
+    camera.position.lerpVectors(from.position, to.position, t);
+    camera.position.y += Math.sin(Math.PI * t) * from.position.distanceTo(to.position) * CAMERA.arc;
+    camera.quaternion.slerpQuaternions(from.quaternion, to.quaternion, t);
+
+    system.sky.position.copy(camera.position);
+    system.streamer.update(camera, moving);
   });
 
   return null;
@@ -393,13 +868,15 @@ function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void })
   const [generation, setGeneration] = React.useState(0);
   const system = useMemo(() => buildSystem(gl, quality), [gl, quality, generation]); // eslint-disable-line react-hooks/exhaustive-deps
   const aspectBucket = Math.round(aspect * 10) / 10;
-  const path = useMemo(() => buildCameraPath(system, aspectBucket), [system, aspectBucket]);
+  const poses = useMemo(() => buildPoses(system, aspectBucket), [system, aspectBucket]);
 
   useEffect(() => {
     // bake one surface per frame so the page stays responsive while the scene loads
     let cancelled = false;
     let frame = 0;
     const jobs = [...system.bakeJobs];
+    system.streamer.setOnChange(invalidate);
+    const textures = system.loadTextures();
     const step = () => {
       if (cancelled) return;
       jobs.shift()?.();
@@ -407,10 +884,13 @@ function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void })
         frame = requestAnimationFrame(step);
         return;
       }
-      // compile the runtime shaders now, so bodies coming into view later don't stall a frame
-      gl.compile(system.root, camera);
-      invalidate();
-      onReady?.();
+      textures.then(() => {
+        if (cancelled) return;
+        // compile the runtime shaders now, so bodies coming into view later don't stall a frame
+        gl.compile(system.root, camera);
+        invalidate();
+        onReady?.();
+      });
     };
     frame = requestAnimationFrame(step);
     return () => {
@@ -445,6 +925,15 @@ function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void })
     };
   }, [quality, setDpr]);
 
+  // keep the horizontal field of view natural on ultrawide screens (avoids stretched edges)
+  useEffect(() => {
+    const perspective = camera as THREE.PerspectiveCamera;
+    const maxVertical = 2 * Math.atan(Math.tan((CAMERA.maxHorizontalFov / 2) * DEG) / aspect) / DEG;
+    perspective.fov = Math.min(CAMERA.fov, maxVertical);
+    perspective.updateProjectionMatrix();
+    invalidate();
+  }, [camera, aspect, invalidate]);
+
   useFrame(({ viewport }) => {
     (system.stars.material as THREE.ShaderMaterial).uniforms.uPixelRatio.value = viewport.dpr;
   });
@@ -452,7 +941,7 @@ function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void })
   return (
     <>
       <primitive object={system.root} />
-      <CameraRig path={path} sky={system.sky} />
+      <CameraRig poses={poses} system={system} />
     </>
   );
 }

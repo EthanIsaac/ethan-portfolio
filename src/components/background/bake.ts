@@ -5,7 +5,7 @@ import {
   earthBakeFragment,
   gasBakeFragment,
   rockyBakeFragment,
-  skyBakeFragment,
+  skyGlowFragment,
   sunBakeFragment,
 } from './shaders';
 
@@ -21,7 +21,7 @@ const FRAGMENTS: Record<string, string> = {
   earth: earthBakeFragment,
   gas: gasBakeFragment,
   rocky: rockyBakeFragment,
-  sky: skyBakeFragment,
+  glow: skyGlowFragment,
 };
 
 function surfaceUniforms(body: BodyDef): Record<string, unknown> {
@@ -55,14 +55,13 @@ function surfaceUniforms(body: BodyDef): Record<string, unknown> {
       uCap: surface.cap ?? 0,
       uTwoTone: surface.twoTone ?? 0,
       uSpots: surface.spots ?? 0,
-      uBump: surface.bump ?? 0.7,
     };
   }
   return {};
 }
 
 /**
- * Renders procedural surfaces into textures. Materials are cached per shader variant,
+ * Renders procedural surface colour into textures (lit later, at runtime). Materials are cached per shader variant,
  * so each heavy noise program is compiled once rather than once per body.
  */
 export class Baker {
@@ -75,27 +74,17 @@ export class Baker {
     this.scene.add(this.quad);
   }
 
-  private material(type: string, ringShadow: boolean) {
-    const key = `${type}${ringShadow ? ':ring' : ''}`;
-    let material = this.materials.get(key);
+  private material(type: string) {
+    let material = this.materials.get(type);
     if (!material) {
-      const defines: Record<string, string | number> = { OCTAVES: this.quality.octaves, RING_TYPE: 0 };
-      if (ringShadow) {
-        defines.RING_SHADOW = '';
-        defines.RING_TYPE = RING_TYPE_INDEX.saturn;
-      }
       material = new THREE.ShaderMaterial({
         vertexShader: bakeVertex,
         fragmentShader: FRAGMENTS[type],
-        uniforms: {
-          uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-          uSeed: { value: 0 },
-          uAmbient: { value: 0.025 },
-        },
-        defines,
+        uniforms: { uSeed: { value: 0 } },
+        defines: { OCTAVES: this.quality.octaves },
         depthTest: false,
       });
-      this.materials.set(key, material);
+      this.materials.set(type, material);
     }
     return material;
   }
@@ -123,23 +112,18 @@ export class Baker {
     return target;
   }
 
-  /** Bakes a body's lit surface. `sunDir` is the direction to the Sun in the body's own space. */
-  body(body: BodyDef, sunDir: THREE.Vector3, seed: number) {
+  /** Bakes a body's surface colour. */
+  body(body: BodyDef, seed: number) {
     const width = Math.max(128, Math.round(body.bakeWidth * this.quality.bakeScale));
-    const material = this.material(body.surface.type, body.ring === 'saturn');
-    return this.render(material, { ...surfaceUniforms(body), uSunDir: sunDir, uSeed: seed }, width);
+    return this.render(this.material(body.surface.type), { ...surfaceUniforms(body), uSeed: seed }, width);
   }
 
-  sky() {
-    return this.render(
-      this.material('sky', false),
-      {
-        uAmbient: 0,
-        uGalacticPole: new THREE.Vector3(0.35, 0.8, 0.48).normalize(),
-        uGalacticCenter: new THREE.Vector3(0.9, -0.15, -0.4).normalize(),
-      },
-      this.quality.skySize
-    );
+  /** Smooth Milky Way glow from the sky panorama (see skyGlowFragment). */
+  skyGlow(source: THREE.Texture) {
+    const material = this.material('glow');
+    const target = this.render(material, { uSource: source }, 1024);
+    material.uniforms.uSource.value = null; // don't keep the source alive
+    return target;
   }
 
   dispose() {
