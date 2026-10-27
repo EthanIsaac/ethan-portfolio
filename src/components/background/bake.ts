@@ -5,7 +5,6 @@ import {
   earthBakeFragment,
   gasBakeFragment,
   rockyBakeFragment,
-  skyBakeFragment,
   sunBakeFragment,
 } from './shaders';
 
@@ -21,7 +20,6 @@ const FRAGMENTS: Record<string, string> = {
   earth: earthBakeFragment,
   gas: gasBakeFragment,
   rocky: rockyBakeFragment,
-  sky: skyBakeFragment,
 };
 
 function surfaceUniforms(body: BodyDef): Record<string, unknown> {
@@ -128,18 +126,6 @@ export class Baker {
     const width = Math.max(128, Math.round(body.bakeWidth * this.quality.bakeScale));
     const material = this.material(body.surface.type, body.ring === 'saturn');
     return this.render(material, { ...surfaceUniforms(body), uSunDir: sunDir, uSeed: seed }, width);
-  }
-
-  sky() {
-    return this.render(
-      this.material('sky', false),
-      {
-        uAmbient: 0,
-        uGalacticPole: new THREE.Vector3(0.35, 0.8, 0.48).normalize(),
-        uGalacticCenter: new THREE.Vector3(0.9, -0.15, -0.4).normalize(),
-      },
-      this.quality.skySize
-    );
   }
 
   dispose() {

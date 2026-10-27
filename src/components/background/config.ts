@@ -1,6 +1,8 @@
 // Scene catalogue and tuning knobs for the Solar System background.
 // Sizes and distances are compressed (artistic), but keep the real order and relative sizes.
 
+export type TextureTier = '1k' | '2k' | '4k';
+
 export interface Quality {
   maxDpr: number;
   maxPixels: number; // cap on canvas size in device pixels, applied on top of maxDpr
@@ -9,7 +11,7 @@ export interface Quality {
   octaves: number; // fbm octaves used while baking
   sphereSegments: [number, number]; // large bodies; small ones use half
   starCount: number;
-  skySize: number; // equirect sky bake width
+  textureTier: TextureTier; // best photo texture tier to stream in as the camera gets close
 }
 
 export const QUALITY: Record<'mobile' | 'desktop', Quality> = {
@@ -17,30 +19,44 @@ export const QUALITY: Record<'mobile' | 'desktop', Quality> = {
     maxDpr: 2,
     maxPixels: 4_500_000,
     antialias: true,
-    bakeScale: 1,
+    bakeScale: 2,
     octaves: 6,
-    sphereSegments: [72, 48],
-    starCount: 2600,
-    skySize: 2048,
+    sphereSegments: [128, 64],
+    starCount: 1400,
+    textureTier: '4k',
   },
   mobile: {
     maxDpr: 1.5,
     maxPixels: 2_000_000,
     antialias: false,
-    bakeScale: 0.5,
+    bakeScale: 1,
     octaves: 5,
-    sphereSegments: [48, 32],
-    starCount: 1600,
-    skySize: 1024,
+    sphereSegments: [64, 32],
+    starCount: 900,
+    textureTier: '2k',
   },
 };
 
 export const CAMERA = {
-  fov: 50,
+  fov: 50, // vertical
+  maxHorizontalFov: 80,
   near: 0.05,
   far: 4000,
-  damping: 3.5, // higher = camera catches up with scroll faster
+  damping: 1.4, // higher = camera catches up with scroll faster
+  lookDamping: 1.8, // separate, gentler easing for where the camera points
+  dwell: 0.55, // 0..1, how much the camera lingers at each body before moving on
 };
+
+// Photo textures in public/textures/<tier>/<name>.webp (Solar System Scope, CC BY 4.0).
+// Bodies without one fall back to a procedural surface.
+export interface PhotoTexture {
+  name: string;
+  max: TextureTier;
+  bump?: number; // relief derived from the texture's brightness
+}
+
+export const SKY_TEXTURE: PhotoTexture = { name: 'sky', max: '4k' };
+export const EARTH_LAYERS = ['earth_night', 'earth_clouds', 'earth_specular'];
 
 const RADIUS_SCALE = 0.0045; // units per sqrt(km)
 const DISTANCE_BASE = 6;
@@ -95,29 +111,30 @@ export interface BodyDef {
   ring?: RingType;
   atmosphere?: { color: string; intensity: number };
   surface: Surface;
+  texture?: PhotoTexture;
   bakeWidth: number;
 }
 
 export const BODIES: BodyDef[] = [
-  { name: 'Sun', kind: 'star', radiusKm: 696000, surface: { type: 'sun' }, bakeWidth: 1024 },
+  { name: 'Sun', kind: 'star', radiusKm: 696000, surface: { type: 'sun' }, bakeWidth: 1024, texture: { name: 'sun', max: '4k' } },
 
   // Planets
   {
-    name: 'Mercury', kind: 'planet', radiusKm: 2440, au: 0.39, angle: 9, tilt: 0, bakeWidth: 512,
+    name: 'Mercury', kind: 'planet', radiusKm: 2440, au: 0.39, angle: 9, tilt: 0, bakeWidth: 512, texture: { name: 'mercury', max: '4k', bump: 1.6 },
     surface: { type: 'rocky', base: '#8f8a84', dark: '#5f5a55', light: '#b3ada6', scale: 2.2, craters: 1, bump: 1.2 },
   },
   {
-    name: 'Venus', kind: 'planet', radiusKm: 6052, au: 0.72, angle: -7, tilt: 177, bakeWidth: 512,
+    name: 'Venus', kind: 'planet', radiusKm: 6052, au: 0.72, angle: -7, tilt: 177, bakeWidth: 512, texture: { name: 'venus', max: '4k' },
     atmosphere: { color: '#f7dfa8', intensity: 1.1 },
     surface: { type: 'gas', colors: ['#e9cf98', '#d9b06a', '#f3e2b8', '#c99a55'], bands: 5, turbulence: 1.6, contrast: 0.35 },
   },
   {
-    name: 'Earth', kind: 'planet', radiusKm: 6371, au: 1, angle: 6, tilt: 23.4, spin: 200, bakeWidth: 1024,
+    name: 'Earth', kind: 'planet', radiusKm: 6371, au: 1, angle: 6, tilt: 23.4, spin: 200, bakeWidth: 1024, texture: { name: 'earth_day', max: '4k' },
     atmosphere: { color: '#6fa8ff', intensity: 1.3 },
     surface: { type: 'earth' },
   },
   {
-    name: 'Mars', kind: 'planet', radiusKm: 3390, au: 1.52, angle: -9, tilt: 25.2, bakeWidth: 512,
+    name: 'Mars', kind: 'planet', radiusKm: 3390, au: 1.52, angle: -9, tilt: 25.2, bakeWidth: 512, texture: { name: 'mars', max: '4k', bump: 1.2 },
     atmosphere: { color: '#e8a07a', intensity: 0.55 },
     surface: {
       type: 'rocky', base: '#b5532d', dark: '#6e3220', light: '#d68350', scale: 1.6,
@@ -125,7 +142,7 @@ export const BODIES: BodyDef[] = [
     },
   },
   {
-    name: 'Jupiter', kind: 'planet', radiusKm: 69911, au: 5.2, angle: -5, tilt: 3.1, spin: 40, ring: 'jupiter', bakeWidth: 1024,
+    name: 'Jupiter', kind: 'planet', radiusKm: 69911, au: 5.2, angle: -5, tilt: 3.1, spin: 40, ring: 'jupiter', bakeWidth: 1024, texture: { name: 'jupiter', max: '4k' },
     shape: [1, 0.935, 1],
     atmosphere: { color: '#e8d2b0', intensity: 0.8 },
     surface: {
@@ -134,18 +151,18 @@ export const BODIES: BodyDef[] = [
     },
   },
   {
-    name: 'Saturn', kind: 'planet', radiusKm: 58232, au: 9.58, angle: 6, tilt: 26.7, ring: 'saturn', bakeWidth: 1024,
+    name: 'Saturn', kind: 'planet', radiusKm: 58232, au: 9.58, angle: 6, tilt: 26.7, ring: 'saturn', bakeWidth: 1024, texture: { name: 'saturn', max: '4k' },
     shape: [1, 0.9, 1],
     atmosphere: { color: '#f3dfa5', intensity: 0.7 },
     surface: { type: 'gas', colors: ['#e6d3a3', '#c9a86a', '#f1e4bd', '#b8955c'], bands: 16, turbulence: 1.2, contrast: 0.55 },
   },
   {
-    name: 'Uranus', kind: 'planet', radiusKm: 25362, au: 19.2, angle: -4, tilt: 97.8, ring: 'uranus', bakeWidth: 512,
+    name: 'Uranus', kind: 'planet', radiusKm: 25362, au: 19.2, angle: -4, tilt: 97.8, ring: 'uranus', bakeWidth: 512, texture: { name: 'uranus', max: '2k' },
     atmosphere: { color: '#b8f0f5', intensity: 1 },
     surface: { type: 'gas', colors: ['#a9dfe5', '#97d1da', '#c3eaee', '#8cc6d0'], bands: 8, turbulence: 0.6, contrast: 0.25 },
   },
   {
-    name: 'Neptune', kind: 'planet', radiusKm: 24622, au: 30.1, angle: 4, tilt: 28.3, spin: 120, ring: 'neptune', bakeWidth: 512,
+    name: 'Neptune', kind: 'planet', radiusKm: 24622, au: 30.1, angle: 4, tilt: 28.3, spin: 120, ring: 'neptune', bakeWidth: 512, texture: { name: 'neptune', max: '2k' },
     atmosphere: { color: '#5d88ff', intensity: 1.1 },
     surface: {
       type: 'gas', colors: ['#4169cf', '#2d4ca8', '#6f92e2', '#3557b8'], bands: 10, turbulence: 1.4, contrast: 0.6,
@@ -155,7 +172,7 @@ export const BODIES: BodyDef[] = [
 
   // Dwarf planets
   {
-    name: 'Ceres', kind: 'dwarf', radiusKm: 473, au: 2.77, angle: 11, height: 0.6, bakeWidth: 256,
+    name: 'Ceres', kind: 'dwarf', radiusKm: 473, au: 2.77, angle: 11, height: 0.6, bakeWidth: 256, texture: { name: 'ceres', max: '2k', bump: 1.2 },
     surface: { type: 'rocky', base: '#7a766f', dark: '#58544e', light: '#a29d95', scale: 2.4, craters: 0.9 },
   },
   {
@@ -166,22 +183,22 @@ export const BODIES: BodyDef[] = [
     },
   },
   {
-    name: 'Haumea', kind: 'dwarf', radiusKm: 816, au: 43.1, angle: 3, height: -2, bakeWidth: 256,
+    name: 'Haumea', kind: 'dwarf', radiusKm: 816, au: 43.1, angle: 3, height: -2, bakeWidth: 256, texture: { name: 'haumea', max: '2k', bump: 0.8 },
     shape: [1.42, 0.63, 1.04],
     surface: { type: 'rocky', base: '#d8d5cf', dark: '#a9a49d', light: '#f0eee9', scale: 2, craters: 0.3, spots: 0.3 },
   },
   {
-    name: 'Makemake', kind: 'dwarf', radiusKm: 715, au: 45.8, angle: -2.5, height: 2, bakeWidth: 256,
+    name: 'Makemake', kind: 'dwarf', radiusKm: 715, au: 45.8, angle: -2.5, height: 2, bakeWidth: 256, texture: { name: 'makemake', max: '2k', bump: 0.8 },
     surface: { type: 'rocky', base: '#b98b68', dark: '#8a6248', light: '#d8b08e', scale: 1.8, craters: 0.2, spots: 0.5 },
   },
   {
-    name: 'Eris', kind: 'dwarf', radiusKm: 1163, au: 67.8, angle: 2, height: -4, bakeWidth: 256,
+    name: 'Eris', kind: 'dwarf', radiusKm: 1163, au: 67.8, angle: 2, height: -4, bakeWidth: 256, texture: { name: 'eris', max: '2k', bump: 0.8 },
     surface: { type: 'rocky', base: '#e6e4df', dark: '#c4c0b9', light: '#f7f6f3', scale: 1.8, craters: 0.25 },
   },
 
   // Moons
   {
-    name: 'Moon', kind: 'moon', radiusKm: 1737, parent: 'Earth', orbit: 4.2, orbitAngle: 20, bakeWidth: 512,
+    name: 'Moon', kind: 'moon', radiusKm: 1737, parent: 'Earth', orbit: 4.2, orbitAngle: 20, bakeWidth: 512, texture: { name: 'moon', max: '4k', bump: 2 },
     surface: { type: 'rocky', base: '#8e8a85', dark: '#4d4a47', light: '#b5b1ab', scale: 1.8, craters: 0.9, maria: 0.9, bump: 1 },
   },
   {
