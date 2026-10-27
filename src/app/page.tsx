@@ -11,17 +11,17 @@ const Landing = () => {
   return (
     <Box minWidth="100%" minHeight="100%" position="relative">
       <Background />
-      {/* each section shows one planet in the background (see components/background) */}
-      <div data-planet="Earth">
+      {/* the background flies outward from the Sun, framing each section's planets in turn (see components/background) */}
+      <div data-planet="Sun">
         <Intro />
       </div>
-      <div data-planet="Mars">
+      <div data-planet="Mercury Venus">
         <WhoIsEthan />
       </div>
-      <div data-planet="Jupiter">
+      <div data-planet="Earth Mars Jupiter Saturn">
         <MyExperience />
       </div>
-      <div data-planet="Saturn">
+      <div data-planet="Uranus">
         <MyEducation />
       </div>
       <div data-planet="Neptune">

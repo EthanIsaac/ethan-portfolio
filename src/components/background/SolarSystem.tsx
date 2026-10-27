@@ -607,30 +607,49 @@ const smootherstep = (x: number) => {
 };
 
 /**
- * Page sections opt in with `data-planet="<body name>"`. Returns their bodies in page order and a
- * continuous stop value for the current scroll position: whole numbers while a section is on
- * screen, easing to the next one over CAMERA.transition viewport heights centred on the moment
- * the next section's top crosses the middle of the screen. Once the camera's easing settles,
- * the same scroll position always gives the same view.
+ * Page sections opt in with `data-planet="<body name> [<body name> ...]"`. Each section owns the
+ * scroll from when its top crosses the middle of the screen until the next one's does, split
+ * evenly between its bodies. Returns the bodies in page order and a continuous stop value for
+ * the current scroll position: whole numbers while a body is framed, easing to the next one over
+ * up to CAMERA.transition viewport heights centred on that body's share of the scroll beginning.
+ * Once the camera's easing settles, the same scroll position always gives the same view.
  */
 function readSections(placed: Map<string, unknown>) {
-  const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-planet]')).filter((el) =>
-    placed.has(el.dataset.planet)
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-planet]'));
+  const height = window.innerHeight;
+  const maxScroll = Math.max(0, document.documentElement.scrollHeight - height);
+  const starts = sections.map((el, i) =>
+    i === 0 ? 0 : THREE.MathUtils.clamp(el.getBoundingClientRect().top + window.scrollY - height / 2, 0, maxScroll)
   );
-  const names = sections.map((el) => el.dataset.planet);
-  const half = (window.innerHeight * CAMERA.transition) / 2;
+
+  const names: string[] = [];
+  const anchors: number[] = [];
+  sections.forEach((el, i) => {
+    const bodies = el.dataset.planet.split(/\s+/).filter((name) => placed.has(name));
+    const end = i + 1 < sections.length ? starts[i + 1] : maxScroll;
+    bodies.forEach((name, j) => {
+      names.push(name);
+      anchors.push(starts[i] + ((end - starts[i]) * j) / bodies.length);
+    });
+  });
+
   let value = 0;
-  for (let i = 1; i < sections.length; i++) {
-    const boundary = sections[i].getBoundingClientRect().top + window.scrollY - window.innerHeight / 2;
-    value += smootherstep((window.scrollY - (boundary - half)) / (2 * half));
+  for (let i = 1; i < anchors.length; i++) {
+    // keep each transition clear of its neighbours and finished by the bottom of the page
+    const next = i + 1 < anchors.length ? anchors[i + 1] : maxScroll + (anchors[i] - anchors[i - 1]);
+    const half = Math.max(
+      1,
+      Math.min((height * CAMERA.transition) / 2, (anchors[i] - anchors[i - 1]) * 0.45, (next - anchors[i]) * 0.45, maxScroll - anchors[i])
+    );
+    value += smootherstep((window.scrollY - (anchors[i] - half)) / (2 * half));
   }
-  return { names: names.length ? names : ['Earth'], value };
+  return { names: names.length ? names : ['Sun'], value };
 }
 
 function CameraRig({ poses, system }: { poses: Poses; system: System }) {
   const invalidate = useThree((s) => s.invalidate);
   const reducedMotion = usePrefersReducedMotion();
-  const names = useRef<string[]>(['Earth']);
+  const names = useRef<string[]>(['Sun']);
   const value = useRef<number | null>(null);
   const target = useRef(0);
 
