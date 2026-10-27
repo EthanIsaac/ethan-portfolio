@@ -132,14 +132,23 @@ function buildStars(count: number) {
   return points;
 }
 
+interface TextureLayer {
+  name: string;
+  max: number; // highest tier index that exists for this file
+}
+
 interface StreamedTexture {
-  names: string[];
-  max: number; // highest tier index worth loading
+  layers: TextureLayer[];
+  max: number; // highest tier index worth loading for this item
   tier: number; // tier index currently shown, -1 before the first load
   pending: boolean;
+  base: THREE.Texture[] | null; // lowest tier, kept for the whole session
+  upgraded: THREE.Texture[] | null; // higher tier, released again when the body is far away
   center?: THREE.Vector3;
   radius?: number;
+  url?: (layer: TextureLayer, tier: number) => string;
   apply: (textures: THREE.Texture[]) => void;
+  fallback?: () => void; // if even the lowest tier fails to load
 }
 
 function tierIndex(texture: PhotoTexture, quality: Quality) {
@@ -148,13 +157,16 @@ function tierIndex(texture: PhotoTexture, quality: Quality) {
 
 function createTextureStreamer(gl: THREE.WebGLRenderer) {
   const loader = new THREE.TextureLoader();
-  const loaded = new Set<THREE.Texture>();
   const items: StreamedTexture[] = [];
   let disposed = false;
   let onChange = () => {};
 
-  // upgrades wait here until the camera is still, so uploading a big texture never stalls a moving frame
-  const ready: { item: StreamedTexture; tier: number; textures: THREE.Texture[] }[] = [];
+  // Upgrades wait here until the camera is still, then upload one texture per frame, so a
+  // big texture never stalls a moving frame and a multi-layer body never uploads all at once.
+  const uploads: { item: StreamedTexture; tier: number; textures: THREE.Texture[]; done: number }[] = [];
+
+  const urlFor = (item: StreamedTexture, layer: TextureLayer, tier: number) =>
+    item.url ? item.url(layer, tier) : `/textures/${TIERS[Math.min(tier, layer.max)]}/${layer.name}.webp`;
 
   const loadOne = (url: string) =>
     new Promise<THREE.Texture>((resolve, reject) =>
@@ -163,7 +175,7 @@ function createTextureStreamer(gl: THREE.WebGLRenderer) {
         (texture) => {
           texture.wrapS = THREE.RepeatWrapping;
           texture.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
-          // decode off the main thread now, instead of synchronously at upload time
+          // start decoding off the main thread now rather than at upload time
           const image = texture.image as HTMLImageElement;
           (image.decode ? image.decode() : Promise.resolve()).then(() => resolve(texture), () => resolve(texture));
         },
@@ -172,55 +184,77 @@ function createTextureStreamer(gl: THREE.WebGLRenderer) {
       )
     );
 
-  const show = (item: StreamedTexture, tier: number, textures: THREE.Texture[]) => {
-    if (disposed || tier <= item.tier) {
-      textures.forEach((t) => t.dispose());
-      return;
+  const loadTier = (item: StreamedTexture, tier: number) =>
+    Promise.all(item.layers.map((layer) => loadOne(urlFor(item, layer, tier))));
+
+  const release = (textures: THREE.Texture[] | null) => textures?.forEach((t) => t.dispose());
+
+  const loadBase = async (item: StreamedTexture, tier: number) => {
+    try {
+      const textures = await loadTier(item, tier);
+      if (disposed) return release(textures);
+      textures.forEach((t) => gl.initTexture(t));
+      item.base = textures;
+      item.tier = tier;
+      item.apply(textures);
+      onChange();
+    } catch {
+      if (!disposed) item.fallback?.();
     }
-    textures.forEach((t) => {
-      gl.initTexture(t);
-      loaded.add(t);
-    });
-    item.apply(textures);
-    item.tier = tier;
-    onChange();
   };
 
-  const load = async (item: StreamedTexture, tier: number, immediate: boolean) => {
+  const upgrade = async (item: StreamedTexture) => {
     item.pending = true;
     try {
-      const textures = await Promise.all(item.names.map((name) => loadOne(`/textures/${TIERS[tier]}/${name}.webp`)));
-      if (immediate) show(item, tier, textures);
-      else {
-        ready.push({ item, tier, textures });
-        onChange(); // wake the render loop so a still camera picks it up
-      }
+      const textures = await loadTier(item, item.max);
+      if (disposed) return release(textures);
+      uploads.push({ item, tier: item.max, textures, done: 0 });
+      onChange(); // wake the render loop so a still camera picks it up
     } catch {
-      // keep whatever is showing; the body stays on its lower tier
-    } finally {
-      if (immediate) item.pending = false;
+      item.max = item.tier; // that tier isn't available; stop asking for it
+      item.pending = false;
     }
   };
 
   return {
     items,
-    add(item: Omit<StreamedTexture, 'tier' | 'pending'>) {
-      items.push({ ...item, tier: -1, pending: false });
+    add(item: Omit<StreamedTexture, 'tier' | 'pending' | 'base' | 'upgraded'>) {
+      const full: StreamedTexture = { ...item, tier: -1, pending: false, base: null, upgraded: null };
+      items.push(full);
+      return full;
     },
-    /** Loads the lowest tier of every texture (the sky goes straight to its best tier). */
-    loadInitial(sky: StreamedTexture) {
-      return Promise.all(items.map((item) => load(item, item === sky ? item.max : 0, true)));
+    /** Loads the lowest tier of every texture. Items without a position (the sky) go straight to their best. */
+    loadInitial() {
+      return Promise.all(items.map((item) => loadBase(item, item.center ? 0 : item.max)));
     },
-    /** Upgrades bodies the camera is close to. Cheap enough to run every frame. */
+    /** Streams textures in and out with the camera. Cheap enough to run every frame. */
     update(camera: THREE.Camera, moving: boolean) {
-      if (!moving && ready.length) {
-        const { item, tier, textures } = ready.shift();
-        show(item, tier, textures);
-        item.pending = false;
+      if (!moving && uploads.length) {
+        const upload = uploads[0];
+        gl.initTexture(upload.textures[upload.done++]);
+        if (upload.done === upload.textures.length) {
+          uploads.shift();
+          const { item } = upload;
+          release(item.upgraded);
+          item.upgraded = upload.textures;
+          item.tier = upload.tier;
+          item.pending = false;
+          item.apply(upload.textures);
+        }
+        onChange();
       }
       for (const item of items) {
-        if (item.pending || item.tier < 0 || item.tier >= item.max || !item.center) continue;
-        if (item.radius / camera.position.distanceTo(item.center) > UPGRADE_ANGULAR_SIZE) load(item, item.max, false);
+        if (item.pending || item.tier < 0 || !item.center) continue;
+        const size = item.radius / camera.position.distanceTo(item.center);
+        if (item.tier < item.max && size > UPGRADE_ANGULAR_SIZE) {
+          upgrade(item);
+        } else if (item.upgraded && size < UPGRADE_ANGULAR_SIZE / 4) {
+          // far away again: drop back to the small texture to free GPU memory
+          item.apply(item.base);
+          release(item.upgraded);
+          item.upgraded = null;
+          item.tier = 0;
+        }
       }
     },
     setOnChange(callback: () => void) {
@@ -228,7 +262,11 @@ function createTextureStreamer(gl: THREE.WebGLRenderer) {
     },
     dispose() {
       disposed = true;
-      loaded.forEach((t) => t.dispose());
+      uploads.forEach((u) => release(u.textures));
+      items.forEach((item) => {
+        release(item.base);
+        release(item.upgraded);
+      });
     },
   };
 }
@@ -244,7 +282,16 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
   const placed = new Map<string, PlacedBody>();
   const tiltOf = new Map<string, THREE.Quaternion>();
   const streamer = createTextureStreamer(gl);
-  const ringTexture = track(new THREE.TextureLoader().load(SATURN_RING_URL));
+  // shared by Saturn's ring and its ring shadow; fully transparent until the real texture loads
+  const clear = track(new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1));
+  clear.needsUpdate = true;
+  const ringTexture: THREE.IUniform<THREE.Texture> = { value: clear };
+  streamer.add({
+    layers: [{ name: 'saturn_ring', max: 0 }],
+    max: 0,
+    url: () => SATURN_RING_URL,
+    apply: ([ring]) => (ringTexture.value = ring),
+  });
 
   for (const def of BODIES) {
     const radius = toSceneRadius(def.radiusKm);
@@ -292,7 +339,7 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
               uColor: { value: new THREE.Color(cfg.color) },
               uSunDirLocal: { value: new THREE.Vector3(0, 0, 1) },
               uBrightness: { value: cfg.brightness },
-              uRingTex: { value: ringTexture },
+              uRingTex: ringTexture,
               uRingRange: { value: new THREE.Vector2(...SATURN_RING_RANGE) },
             },
             defines:
@@ -357,17 +404,22 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     const ring = body.holder.getObjectByName('ring') as THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>;
     if (ring) ring.material.uniforms.uSunDirLocal.value = ring.worldToLocal(SUN_POSITION.clone()).normalize();
 
+    // procedural surface baked with the Sun's direction in the body's own space
+    const bake = () => track(baker.body(def, body.mesh.worldToLocal(SUN_POSITION.clone()).normalize(), i * 1.618)).texture;
+    const layer = (name: string, max = TIERS.indexOf(def.texture?.max ?? '1k')) => ({ name, max });
+
     if (def.kind === 'star') {
       const material = track(
         new THREE.ShaderMaterial({ vertexShader: sunVertex, fragmentShader: sunFragment, uniforms: { uMap: { value: placeholder } } })
       );
       body.mesh.material = material;
       streamer.add({
-        names: [def.texture.name],
+        layers: [layer(def.texture.name)],
         max: tierIndex(def.texture, quality),
         center: body.holder.position,
         radius: body.radius,
         apply: ([map]) => (material.uniforms.uMap.value = map),
+        fallback: () => (material.uniforms.uMap.value = bake()),
       });
       return;
     }
@@ -392,7 +444,7 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
             uNight: { value: placeholder },
             uClouds: { value: placeholder },
             uSpecular: { value: placeholder },
-            uRingTex: { value: ringTexture },
+            uRingTex: ringTexture,
             uRingRange: { value: new THREE.Vector2(...SATURN_RING_RANGE) },
             uRingCenter: { value: body.holder.position },
             uRingNormal: { value: new THREE.Vector3(0, 1, 0).applyQuaternion(body.holder.quaternion) },
@@ -404,7 +456,9 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
       );
       body.mesh.material = material;
       streamer.add({
-        names: earth ? [def.texture.name, ...EARTH_LAYERS] : [def.texture.name],
+        layers: earth
+          ? [layer(def.texture.name), ...EARTH_LAYERS.map(({ name, max }) => layer(name, TIERS.indexOf(max)))]
+          : [layer(def.texture.name)],
         max: tierIndex(def.texture, quality),
         center: body.holder.position,
         radius: body.radius,
@@ -417,16 +471,13 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
             material.uniforms.uSpecular.value = specular;
           }
         },
+        // the photo texture couldn't load (e.g. no WebP support): use the procedural surface
+        fallback: () => (body.mesh.material = track(new THREE.MeshBasicMaterial({ map: bake() }))),
       });
       return;
     }
 
-    // no photo texture: bake a procedural surface with the Sun's direction in the body's own space
-    bakeJobs.push(() => {
-      const sunDir = body.mesh.worldToLocal(SUN_POSITION.clone()).normalize();
-      const target = track(baker.body(def, sunDir, i * 1.618));
-      body.mesh.material = track(new THREE.MeshBasicMaterial({ map: target.texture }));
-    });
+    bakeJobs.push(() => (body.mesh.material = track(new THREE.MeshBasicMaterial({ map: bake() }))));
   });
 
   // Sun glow
@@ -452,7 +503,7 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
   skySphere.renderOrder = -2;
   skySphere.visible = false;
   streamer.add({
-    names: [SKY_TEXTURE.name],
+    layers: [{ name: SKY_TEXTURE.name, max: TIERS.indexOf(SKY_TEXTURE.max) }],
     max: tierIndex(SKY_TEXTURE, quality),
     apply: ([map]) => {
       skyMaterial.map = map;
@@ -460,7 +511,6 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
       skySphere.visible = true;
     },
   });
-  const skyItem = streamer.items[streamer.items.length - 1];
   const stars = buildStars(quality.starCount);
   track(stars.geometry);
   track(stars.material as THREE.Material);
@@ -475,7 +525,7 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     placed,
     bakeJobs,
     streamer,
-    loadTextures: () => streamer.loadInitial(skyItem),
+    loadTextures: () => streamer.loadInitial(),
     dispose: () => {
       streamer.dispose();
       disposables.forEach((d) => d.dispose());
@@ -486,7 +536,8 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
 type System = ReturnType<typeof buildSystem>;
 
 function buildCameraPath(system: System, aspect: number) {
-  const halfHeight = Math.tan((CAMERA.fov / 2) * DEG);
+  // half the view's width at unit distance, using the same horizontal field-of-view cap as the camera
+  const halfWidth = Math.min(Math.tan((CAMERA.fov / 2) * DEG) * aspect, Math.tan((CAMERA.maxHorizontalFov / 2) * DEG));
   // push bodies toward the same side of the screen so the page text stays readable,
   // without swinging the view left and right between stops
   const sideShift = aspect > 1 ? 0.4 : 0.1;
@@ -506,7 +557,7 @@ function buildCameraPath(system: System, aspect: number) {
     // aim beside the body rather than moving the camera, so it never drifts toward a neighbour
     const forward = look.clone().sub(cam).normalize();
     const right = new THREE.Vector3().crossVectors(forward, UP).normalize();
-    const shift = -dist * halfHeight * Math.min(aspect, 1.8) * sideShift;
+    const shift = -dist * halfWidth * sideShift;
     cams.push(cam);
     looks.push(look.addScaledVector(right, shift));
   });
@@ -593,6 +644,7 @@ function CameraRig({ path, system }: { path: CameraPath; system: System }) {
       lookCurrent.copy(lookTarget);
       lookReady.current = true;
     }
+    if (reducedMotion) lookCurrent.copy(lookTarget);
     const lookGap = lookCurrent.distanceTo(lookTarget);
     const looking = lookGap > 1e-3;
     if (looking) {

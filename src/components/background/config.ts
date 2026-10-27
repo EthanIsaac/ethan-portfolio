@@ -29,7 +29,7 @@ export const QUALITY: Record<'mobile' | 'desktop', Quality> = {
     maxDpr: 1.5,
     maxPixels: 2_000_000,
     antialias: false,
-    bakeScale: 1,
+    bakeScale: 0.5,
     octaves: 5,
     sphereSegments: [64, 32],
     starCount: 900,
@@ -56,7 +56,12 @@ export interface PhotoTexture {
 }
 
 export const SKY_TEXTURE: PhotoTexture = { name: 'sky', max: '4k' };
-export const EARTH_LAYERS = ['earth_night', 'earth_clouds', 'earth_specular'];
+// Earth's extra maps; the ocean mask only exists up to 2K
+export const EARTH_LAYERS: { name: string; max: TextureTier }[] = [
+  { name: 'earth_night', max: '4k' },
+  { name: 'earth_clouds', max: '4k' },
+  { name: 'earth_specular', max: '2k' },
+];
 
 const RADIUS_SCALE = 0.0045; // units per sqrt(km)
 const DISTANCE_BASE = 6;

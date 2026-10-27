@@ -1,6 +1,6 @@
 "use client";
 import { Box } from "@mui/material";
-import Background from "components/background";
+import Background, { TextureCredit } from "components/background";
 import { Intro } from "landing-sections/intro";
 import { WhoIsEthan } from "landing-sections/whoIsEthan";
 import { MyExperience } from "landing-sections/my-experience";
@@ -16,6 +16,7 @@ const Landing = () => {
       <MyExperience />
       <MyEducation />
       <TechStack />
+      <TextureCredit />
     </Box>
   );
 };
