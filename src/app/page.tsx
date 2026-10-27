@@ -10,7 +10,7 @@ import { TechStack } from "landing-sections/tech-stack";
 const Landing = () => {
   return (
     <Box minWidth="100%" minHeight="100%" position="relative">
-      <Background position={[1, 0, 0]} />
+      <Background />
       <Intro />
       <WhoIsEthan />
       <MyExperience />
