@@ -365,6 +365,29 @@ void main() {
 }
 `;
 
+// Turns the sky panorama into a smooth Milky Way glow: a wide Gaussian over a coarse mip level
+// averages away its baked-in stars and compression blocks. Runs once.
+export const skyGlowFragment = /* glsl */ `
+uniform sampler2D uSource;
+varying vec2 vUv;
+void main() {
+  float lat = (vUv.y - 0.5) * 3.14159265;
+  float stretch = 1.0 / max(cos(lat), 0.2); // equirect pixels get narrower toward the poles
+  vec3 sum = vec3(0.0);
+  float total = 0.0;
+  for (int i = -3; i <= 3; i++)
+  for (int j = -3; j <= 3; j++) {
+    vec2 o = vec2(float(i), float(j));
+    float w = exp(-dot(o, o) / 6.0);
+    vec2 uv = vUv + o * vec2(0.0035 * stretch, 0.007);
+    uv = vec2(fract(uv.x), clamp(uv.y, 0.0, 1.0));
+    sum += texture2D(uSource, uv, 2.0).rgb * w;
+    total += w;
+  }
+  gl_FragColor = vec4(sum / total, 1.0);
+}
+`;
+
 // --- runtime shaders (cheap) ---
 
 export const sunVertex = /* glsl */ `
@@ -490,8 +513,10 @@ attribute float aSize;
 attribute vec3 aColor;
 uniform float uPixelRatio;
 varying vec3 vColor;
+varying float vGlow;
 void main() {
   vColor = aColor;
+  vGlow = smoothstep(3.0, 7.0, aSize);
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
   gl_PointSize = aSize * uPixelRatio;
@@ -500,13 +525,34 @@ void main() {
 
 export const starsFragment = /* glsl */ `
 varying vec3 vColor;
+varying float vGlow;
 void main() {
   vec2 c = gl_PointCoord - 0.5;
   float d = length(c) * 2.0;
-  float core = exp(-d * d * 40.0);
-  float halo = exp(-d * 9.0) * 0.18;
-  float a = (core + halo) * (1.0 - smoothstep(0.75, 1.0, d));
+  float core = exp(-d * d * 14.0);
+  float halo = exp(-d * 5.0) * 0.22 * vGlow; // only bright stars get a glow
+  float a = (core + halo) * (1.0 - smoothstep(0.8, 1.0, d));
   gl_FragColor = vec4(vColor * a, 1.0);
+}
+`;
+
+export const skyVertex = /* glsl */ `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+export const skyFragment = /* glsl */ `
+uniform sampler2D uMap;
+uniform float uBrightness;
+varying vec2 vUv;
+void main() {
+  vec3 col = texture2D(uMap, vUv).rgb * uBrightness;
+  // dither so the dark, brightened gradient doesn't band into steps
+  float noise = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+  gl_FragColor = vec4(col + (noise - 0.5) / 255.0, 1.0);
 }
 `;
 

@@ -7,7 +7,6 @@ import {
   BODIES,
   BodyDef,
   CAMERA,
-  CAMERA_STOPS,
   EARTH_LAYERS,
   PhotoTexture,
   Quality,
@@ -26,6 +25,8 @@ import {
   planetVertex,
   ringFragment,
   ringVertex,
+  skyFragment,
+  skyVertex,
   starsFragment,
   starsVertex,
   sunFragment,
@@ -37,7 +38,8 @@ const UP = new THREE.Vector3(0, 1, 0);
 const SUN_POSITION = new THREE.Vector3(0, 0, 0);
 const SKY_RADIUS = 1800;
 const STAR_RADIUS = 1500;
-const GALACTIC_POLE = new THREE.Vector3(0.35, 0.8, 0.48).normalize();
+// the sky panorama is in galactic coordinates: its equator (the Milky Way) maps to the y=0 plane
+const GALACTIC_POLE = new THREE.Vector3(0, 1, 0);
 
 // radii (in Saturn radii) spanned by the ring texture, from the C ring out to the A ring
 const SATURN_RING_RANGE: [number, number] = [1.11, 2.33];
@@ -93,10 +95,10 @@ function buildStars(count: number) {
   const bitangent = GALACTIC_POLE.clone().cross(tangent);
 
   for (let i = 0; i < count; i++) {
-    if (Math.random() < 0.4) {
+    if (Math.random() < 0.5) {
       // concentrated toward the Milky Way's plane
       const a = Math.random() * Math.PI * 2;
-      const b = (Math.random() + Math.random() + Math.random() - 1.5) * 0.25;
+      const b = (Math.random() + Math.random() + Math.random() - 1.5) * 0.18;
       v.copy(tangent).multiplyScalar(Math.cos(a)).addScaledVector(bitangent, Math.sin(a)).addScaledVector(GALACTIC_POLE, b);
     } else {
       v.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
@@ -107,11 +109,13 @@ function buildStars(count: number) {
     let r = Math.random();
     let k = 0;
     while (k < weights.length - 1 && r > weights[k]) r -= weights[k++];
-    const bright = Math.pow(Math.random(), 6);
-    sizes[i] = 1.6 + bright * 9;
+    // like real magnitudes: a few bright stars, many faint ones; faint stars stay tiny and
+    // just get dimmer, so they read as crisp points rather than blobs
+    const bright = Math.pow(Math.random(), 12);
+    sizes[i] = 2 + bright * 7;
     palette[k]
       .clone()
-      .multiplyScalar(0.35 + 0.65 * Math.pow(Math.random(), 2) + bright)
+      .multiplyScalar(0.35 + 0.65 * Math.pow(Math.random(), 3) + bright * 1.2)
       .toArray(colors, i * 3);
   }
 
@@ -496,8 +500,16 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
 
   // sky: real Milky Way panorama plus glowing point stars; follows the camera
   const sky = new THREE.Group();
+  // The panorama only supplies the soft Milky Way glow (it can't be sharp enough for a
+  // full-screen sky); the crisp stars are the points below.
   const skyMaterial = track(
-    new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 1.5, 1.6), side: THREE.BackSide, depthWrite: false })
+    new THREE.ShaderMaterial({
+      vertexShader: skyVertex,
+      fragmentShader: skyFragment,
+      uniforms: { uMap: { value: clear }, uBrightness: { value: 1.7 } },
+      side: THREE.BackSide,
+      depthWrite: false,
+    })
   );
   const skySphere = new THREE.Mesh(track(new THREE.SphereGeometry(SKY_RADIUS, 64, 32)), skyMaterial);
   skySphere.renderOrder = -2;
@@ -506,8 +518,7 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
     layers: [{ name: SKY_TEXTURE.name, max: TIERS.indexOf(SKY_TEXTURE.max) }],
     max: tierIndex(SKY_TEXTURE, quality),
     apply: ([map]) => {
-      skyMaterial.map = map;
-      skyMaterial.needsUpdate = true;
+      skyMaterial.uniforms.uMap.value = track(baker.skyGlow(map)).texture;
       skySphere.visible = true;
     },
   });
@@ -535,39 +546,40 @@ function buildSystem(gl: THREE.WebGLRenderer, quality: Quality) {
 
 type System = ReturnType<typeof buildSystem>;
 
-function buildCameraPath(system: System, aspect: number) {
-  // half the view's width at unit distance, using the same horizontal field-of-view cap as the camera
-  const halfWidth = Math.min(Math.tan((CAMERA.fov / 2) * DEG) * aspect, Math.tan((CAMERA.maxHorizontalFov / 2) * DEG));
-  // push bodies toward the same side of the screen so the page text stays readable,
-  // without swinging the view left and right between stops
-  const sideShift = aspect > 1 ? 0.4 : 0.1;
-  const cams: THREE.Vector3[] = [new THREE.Vector3(-14, 8, -42)];
-  const looks: THREE.Vector3[] = [new THREE.Vector3(16, -2, 0)];
-
-  CAMERA_STOPS.forEach((name) => {
-    const { holder, radius, extent } = system.placed.get(name);
-    const pos = holder.position;
-    const radial = new THREE.Vector3(pos.x, 0, pos.z).normalize();
-    const tangent = new THREE.Vector3().crossVectors(UP, radial);
-    const dir = radial.multiplyScalar(-0.45).add(tangent.multiplyScalar(0.85)).addScaledVector(UP, 0.3).normalize();
-    const dist = Math.max(radius * 6, extent * 2.1);
-    const cam = pos.clone().addScaledVector(dir, dist);
-    const look = pos.clone();
-
-    // aim beside the body rather than moving the camera, so it never drifts toward a neighbour
-    const forward = look.clone().sub(cam).normalize();
-    const right = new THREE.Vector3().crossVectors(forward, UP).normalize();
-    const shift = -dist * halfWidth * sideShift;
-    cams.push(cam);
-    looks.push(look.addScaledVector(right, shift));
-  });
-
-  const camCurve = new THREE.CatmullRomCurve3(cams, false, 'centripetal');
-  const lookCurve = new THREE.CatmullRomCurve3(looks, false, 'centripetal');
-  return { camCurve, lookCurve, segments: cams.length - 1 };
+interface Pose {
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
 }
 
-type CameraPath = ReturnType<typeof buildCameraPath>;
+/** Where the camera sits to frame each body: sunward and to one side, aimed so the body sits off-centre. */
+function buildPoses(system: System, aspect: number) {
+  // half the view's width at unit distance, using the same horizontal field-of-view cap as the camera
+  const halfWidth = Math.min(Math.tan((CAMERA.fov / 2) * DEG) * aspect, Math.tan((CAMERA.maxHorizontalFov / 2) * DEG));
+  // keep the body to one side of the screen so the page text stays readable
+  const sideShift = aspect > 1 ? 0.4 : 0.1;
+  const aim = new THREE.PerspectiveCamera();
+  const poses = new Map<string, Pose>();
+
+  system.placed.forEach(({ holder, radius, extent, def }, name) => {
+    const pos = holder.position;
+    const radial = pos.lengthSq() > 0 ? new THREE.Vector3(pos.x, 0, pos.z).normalize() : new THREE.Vector3(1, 0, 0);
+    const tangent = new THREE.Vector3().crossVectors(UP, radial);
+    const dir = radial.multiplyScalar(-0.45).add(tangent.multiplyScalar(0.85)).addScaledVector(UP, 0.3).normalize();
+    const dist = def.kind === 'star' ? radius * 7 : Math.max(radius * 6, extent * 2.1);
+    const camera = pos.clone().addScaledVector(dir, dist);
+
+    const forward = pos.clone().sub(camera).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, UP).normalize();
+    const look = pos.clone().addScaledVector(right, -dist * halfWidth * sideShift);
+
+    aim.position.copy(camera);
+    aim.lookAt(look);
+    poses.set(name, { position: camera, quaternion: aim.quaternion.clone() });
+  });
+  return poses;
+}
+
+type Poses = ReturnType<typeof buildPoses>;
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = React.useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -580,82 +592,80 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-function scrollProgress() {
-  const max = document.documentElement.scrollHeight - window.innerHeight;
-  return max > 0 ? THREE.MathUtils.clamp(window.scrollY / max, 0, 1) : 0;
+const smootherstep = (x: number) => {
+  const t = THREE.MathUtils.clamp(x, 0, 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
+
+/**
+ * Page sections opt in with `data-planet="<body name>"`. Returns their bodies in page order and a
+ * continuous stop value for the current scroll position: whole numbers while a section is on
+ * screen, easing to the next one over CAMERA.transition viewport heights centred on the moment
+ * the next section's top crosses the middle of the screen. Same scroll position, same view.
+ */
+function readSections(placed: Map<string, unknown>) {
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-planet]')).filter((el) =>
+    placed.has(el.dataset.planet)
+  );
+  const names = sections.map((el) => el.dataset.planet);
+  const half = (window.innerHeight * CAMERA.transition) / 2;
+  let value = 0;
+  for (let i = 1; i < sections.length; i++) {
+    const boundary = sections[i].getBoundingClientRect().top + window.scrollY - window.innerHeight / 2;
+    value += smootherstep((window.scrollY - (boundary - half)) / (2 * half));
+  }
+  return { names: names.length ? names : ['Earth'], value };
 }
 
-/** Maps scroll progress to a curve position that eases in and out of each stop. */
-function dwell(progress: number, segments: number) {
-  const x = progress * segments;
-  const i = Math.min(Math.floor(x), segments - 1);
-  const f = x - i;
-  const eased = f * f * (3 - 2 * f);
-  return (i + THREE.MathUtils.lerp(f, eased, CAMERA.dwell)) / segments;
-}
-
-const lookTarget = new THREE.Vector3();
-const lookCurrent = new THREE.Vector3();
-
-function CameraRig({ path, system }: { path: CameraPath; system: System }) {
+function CameraRig({ poses, system }: { poses: Poses; system: System }) {
   const invalidate = useThree((s) => s.invalidate);
   const reducedMotion = usePrefersReducedMotion();
-  const progress = useRef<number | null>(null);
+  const names = useRef<string[]>(['Earth']);
+  const value = useRef<number | null>(null);
   const target = useRef(0);
-  const lookReady = useRef(false);
 
   useEffect(() => {
-    if (reducedMotion) {
-      target.current = progress.current = 0;
-      invalidate();
-      return;
-    }
     const onScroll = () => {
-      target.current = scrollProgress();
+      const sections = readSections(system.placed);
+      names.current = sections.names;
+      // with reduced motion, cut between planets instead of flying
+      target.current = reducedMotion ? Math.round(sections.value) : sections.value;
+      if (value.current === null || reducedMotion) value.current = target.current;
       invalidate();
     };
     onScroll();
-    if (progress.current === null) progress.current = target.current;
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [reducedMotion, invalidate]);
+  }, [reducedMotion, invalidate, system]);
 
-  useEffect(() => invalidate(), [path, invalidate]);
+  useEffect(() => invalidate(), [poses, invalidate]);
 
   useFrame(({ camera }, delta) => {
-    const dt = Math.min(delta, 1 / 30);
-    const current = progress.current ?? target.current;
+    // ease toward the scroll position so a fast fling still glides
+    const current = value.current ?? target.current;
     const diff = target.current - current;
-    let next = target.current;
-    if (Math.abs(diff) > 1e-5) {
-      next = current + diff * (1 - Math.exp(-CAMERA.damping * dt));
-      invalidate();
-    }
-    progress.current = next;
+    const moving = Math.abs(diff) > 1e-4;
+    const next = moving ? current + diff * (1 - Math.exp(-CAMERA.damping * Math.min(delta, 1 / 30))) : target.current;
+    value.current = next;
+    if (moving) invalidate();
 
-    const t = dwell(next, path.segments);
-    path.camCurve.getPoint(t, camera.position);
-    path.lookCurve.getPoint(t, lookTarget);
-    if (!lookReady.current) {
-      lookCurrent.copy(lookTarget);
-      lookReady.current = true;
-    }
-    if (reducedMotion) lookCurrent.copy(lookTarget);
-    const lookGap = lookCurrent.distanceTo(lookTarget);
-    const looking = lookGap > 1e-3;
-    if (looking) {
-      lookCurrent.lerp(lookTarget, 1 - Math.exp(-CAMERA.lookDamping * dt));
-      invalidate();
-    } else {
-      lookCurrent.copy(lookTarget);
-    }
-    camera.lookAt(lookCurrent);
+    const stops = names.current;
+    const i = THREE.MathUtils.clamp(Math.floor(next), 0, Math.max(stops.length - 2, 0));
+    const t = THREE.MathUtils.clamp(next - i, 0, 1);
+    const from = poses.get(stops[i]);
+    const to = poses.get(stops[Math.min(i + 1, stops.length - 1)]);
+
+    // one smooth arc between the two framings, rising above the planets' plane so it never clips one
+    camera.position.lerpVectors(from.position, to.position, t);
+    camera.position.y += Math.sin(Math.PI * t) * from.position.distanceTo(to.position) * CAMERA.arc;
+    camera.quaternion.slerpQuaternions(from.quaternion, to.quaternion, t);
+
     system.sky.position.copy(camera.position);
-    system.streamer.update(camera, next !== target.current || looking);
+    system.streamer.update(camera, moving);
   });
 
   return null;
@@ -676,7 +686,7 @@ function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void })
   const [generation, setGeneration] = React.useState(0);
   const system = useMemo(() => buildSystem(gl, quality), [gl, quality, generation]); // eslint-disable-line react-hooks/exhaustive-deps
   const aspectBucket = Math.round(aspect * 10) / 10;
-  const path = useMemo(() => buildCameraPath(system, aspectBucket), [system, aspectBucket]);
+  const poses = useMemo(() => buildPoses(system, aspectBucket), [system, aspectBucket]);
 
   useEffect(() => {
     // bake one surface per frame so the page stays responsive while the scene loads
@@ -749,7 +759,7 @@ function Scene({ quality, onReady }: { quality: Quality; onReady?: () => void })
   return (
     <>
       <primitive object={system.root} />
-      <CameraRig path={path} system={system} />
+      <CameraRig poses={poses} system={system} />
     </>
   );
 }

@@ -22,7 +22,7 @@ export const QUALITY: Record<'mobile' | 'desktop', Quality> = {
     bakeScale: 2,
     octaves: 6,
     sphereSegments: [128, 64],
-    starCount: 1400,
+    starCount: 7000,
     textureTier: '4k',
   },
   mobile: {
@@ -32,7 +32,7 @@ export const QUALITY: Record<'mobile' | 'desktop', Quality> = {
     bakeScale: 0.5,
     octaves: 5,
     sphereSegments: [64, 32],
-    starCount: 900,
+    starCount: 3500,
     textureTier: '2k',
   },
 };
@@ -42,9 +42,9 @@ export const CAMERA = {
   maxHorizontalFov: 80,
   near: 0.05,
   far: 4000,
-  damping: 1.4, // higher = camera catches up with scroll faster
-  lookDamping: 1.8, // separate, gentler easing for where the camera points
-  dwell: 0.55, // 0..1, how much the camera lingers at each body before moving on
+  damping: 2.5, // how quickly the camera catches up with the scroll position
+  transition: 0.9, // viewport heights of scrolling over which the camera flies to the next planet
+  arc: 0.15, // how high the flight between planets rises, relative to its length
 };
 
 // Photo textures in public/textures/<tier>/<name>.webp (Solar System Scope, CC BY 4.0).
@@ -55,7 +55,7 @@ export interface PhotoTexture {
   bump?: number; // relief derived from the texture's brightness
 }
 
-export const SKY_TEXTURE: PhotoTexture = { name: 'sky', max: '4k' };
+export const SKY_TEXTURE: PhotoTexture = { name: 'sky', max: '2k' }; // only used as a soft glow
 // Earth's extra maps; the ocean mask only exists up to 2K
 export const EARTH_LAYERS: { name: string; max: TextureTier }[] = [
   { name: 'earth_night', max: '4k' },
@@ -284,10 +284,4 @@ export const BODIES: BodyDef[] = [
       craters: 0.6, cap: 0.3, capColor: '#7a4c3c',
     },
   },
-];
-
-// The camera visits these, in order, as the page scrolls from top to bottom.
-export const CAMERA_STOPS = [
-  'Mercury', 'Venus', 'Earth', 'Mars', 'Ceres', 'Jupiter', 'Saturn',
-  'Uranus', 'Neptune', 'Pluto', 'Haumea', 'Makemake', 'Eris',
 ];

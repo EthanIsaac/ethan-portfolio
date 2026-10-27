@@ -5,6 +5,7 @@ import {
   earthBakeFragment,
   gasBakeFragment,
   rockyBakeFragment,
+  skyGlowFragment,
   sunBakeFragment,
 } from './shaders';
 
@@ -20,6 +21,7 @@ const FRAGMENTS: Record<string, string> = {
   earth: earthBakeFragment,
   gas: gasBakeFragment,
   rocky: rockyBakeFragment,
+  glow: skyGlowFragment,
 };
 
 function surfaceUniforms(body: BodyDef): Record<string, unknown> {
@@ -126,6 +128,11 @@ export class Baker {
     const width = Math.max(128, Math.round(body.bakeWidth * this.quality.bakeScale));
     const material = this.material(body.surface.type, body.ring === 'saturn');
     return this.render(material, { ...surfaceUniforms(body), uSunDir: sunDir, uSeed: seed }, width);
+  }
+
+  /** Smooth Milky Way glow from the sky panorama (see skyGlowFragment). */
+  skyGlow(source: THREE.Texture) {
+    return this.render(this.material('glow', false), { uSource: source }, 1024);
   }
 
   dispose() {
